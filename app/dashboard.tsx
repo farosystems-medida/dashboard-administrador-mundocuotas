@@ -81,12 +81,19 @@ function Dashboard() {
   if (!user) {
     // Usar useEffect para redirección del lado del cliente
     useEffect(() => {
-      window.location.href = '/sign-in'
+      const timer = setTimeout(() => {
+        window.location.href = '/sign-in'
+      }, 1000)
+      
+      return () => clearTimeout(timer)
     }, [])
     
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Redirigiendo al login...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+          <div className="text-lg">Redirigiendo al login...</div>
+        </div>
       </div>
     )
   }
