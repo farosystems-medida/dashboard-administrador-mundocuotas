@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "middleware.ts": {
-      "maxDuration": 10
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",
