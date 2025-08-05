@@ -11,7 +11,7 @@ import { ProductosPlanSection } from "./components/productos-plan-section"
 import { useSupabaseData } from "./hooks/use-supabase-data"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
-import { UserButton } from "@clerk/nextjs"
+import { UserButton, useUser } from "@clerk/nextjs"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/breadcrumb"
 
 function Dashboard() {
+  const { user, isLoaded } = useUser()
   const [activeSection, setActiveSection] = useState("dashboard")
   const { 
     productos, 
@@ -66,6 +67,24 @@ function Dashboard() {
 
     return () => window.removeEventListener("hashchange", handleHashChange)
   }, [])
+
+  // Si Clerk aún está cargando, mostrar loading
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Verificando autenticación...</div>
+      </div>
+    )
+  }
+
+  // Si no hay usuario autenticado, el middleware debería haber redirigido
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Redirigiendo al login...</div>
+      </div>
+    )
+  }
 
   const getSectionTitle = () => {
     switch (activeSection) {

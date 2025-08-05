@@ -1,20 +1,26 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
-// Configuración de rutas protegidas
-export const isProtectedRoute = createRouteMatcher([
+const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
   '/productos(.*)',
   '/planes(.*)',
   '/productos-plan(.*)',
 ])
 
-// Middleware de Clerk
-export default clerkMiddleware((auth, req) => {
+export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {
-    auth().protect()
+    const { userId } = await auth()
+    if (!userId) {
+      const signInUrl = new URL('/sign-in', req.url)
+      return Response.redirect(signInUrl)
+    }
   }
 })
 
 export const config = {
-  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+  matcher: [
+    "/((?!.+\\.[\\w]+$|_next).*)",
+    "/",
+    "/(api|trpc)(.*)",
+  ],
 } 
