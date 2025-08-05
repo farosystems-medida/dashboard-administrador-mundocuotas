@@ -104,4 +104,38 @@ Después de configurar todo:
 
 1. El middleware debería redirigir automáticamente a `/sign-in` si no estás autenticado
 2. Después del login exitoso, deberías ser redirigido a `/dashboard`
-3. Los datos deberían cargar correctamente desde Supabase 
+3. Los datos deberían cargar correctamente desde Supabase
+
+## Solución de Problemas en Vercel
+
+### Si se queda en "Redirigiendo al login...":
+
+1. **Verifica las variables de entorno** en tu proyecto de Vercel:
+   - Asegúrate de que `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` esté configurada
+   - Asegúrate de que `CLERK_SECRET_KEY` esté configurada
+   - Verifica que las URLs de Clerk estén correctas
+
+2. **Verifica la configuración de Clerk**:
+   - Ve a tu dashboard de Clerk
+   - En "Domains", agrega tu dominio de Vercel (ej: `tu-app.vercel.app`)
+   - Asegúrate de que el dominio esté verificado
+
+3. **Verifica los logs de Vercel**:
+   - Ve a tu proyecto en Vercel
+   - Navega a "Functions" > "middleware.ts"
+   - Revisa los logs para ver si hay errores
+
+4. **Reinicia el deployment**:
+   - En Vercel, ve a tu proyecto
+   - Haz clic en "Redeploy" para forzar un nuevo deployment
+
+### Variables de entorno críticas para Vercel:
+
+```
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
+``` 

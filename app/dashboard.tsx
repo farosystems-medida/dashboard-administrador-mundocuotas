@@ -77,8 +77,13 @@ function Dashboard() {
     )
   }
 
-  // Si no hay usuario autenticado, el middleware debería haber redirigido
+  // Si no hay usuario autenticado, redirigir al login
   if (!user) {
+    // Usar useEffect para redirección del lado del cliente
+    useEffect(() => {
+      window.location.href = '/sign-in'
+    }, [])
+    
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg">Redirigiendo al login...</div>
