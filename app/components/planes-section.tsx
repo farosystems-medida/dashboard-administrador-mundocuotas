@@ -23,6 +23,8 @@ interface PlanesSectionProps {
 
 export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan }: PlanesSectionProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [planToDelete, setPlanToDelete] = useState<PlanFinanciacion | null>(null)
   const [editingPlan, setEditingPlan] = useState<PlanFinanciacion | null>(null)
   const [formData, setFormData] = useState({
     nombre: "",
@@ -87,16 +89,30 @@ export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan
     setIsDialogOpen(true)
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDeleteClick = (plan: PlanFinanciacion) => {
+    setPlanToDelete(plan)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!planToDelete) return
     try {
-      await onDeletePlan(id)
+      await onDeletePlan(planToDelete.id)
+      setIsDeleteDialogOpen(false)
+      setPlanToDelete(null)
     } catch (error) {
       console.error('Error al eliminar plan:', error)
     }
   }
 
+  const handleDeleteCancel = () => {
+    setIsDeleteDialogOpen(false)
+    setPlanToDelete(null)
+  }
+
   return (
-    <Card>
+    <>
+      <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Gestión de Planes de Financiación</CardTitle>
                                         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -243,7 +259,7 @@ export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan
                     <Button variant="outline" size="sm" onClick={() => handleEdit(plan)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDelete(plan.id)}>
+                    <Button variant="outline" size="sm" onClick={() => handleDeleteClick(plan)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -254,5 +270,39 @@ export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan
         </Table>
       </CardContent>
     </Card>
+
+    {/* Modal de confirmación de eliminación */}
+    <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Confirmar eliminación</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <p className="text-gray-700 text-sm">
+              ¿Estás seguro de que quieres eliminar el plan <strong>"{planToDelete?.nombre}"</strong>?
+            </p>
+          </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="flex items-center">
+              <span className="text-yellow-600 text-lg mr-2">⚠️</span>
+              <span className="font-medium text-yellow-800 text-sm">Atención</span>
+            </div>
+            <p className="text-yellow-700 text-xs mt-1">
+              Esta acción no se puede deshacer. El plan será eliminado permanentemente.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button variant="outline" onClick={handleDeleteCancel} size="sm">
+            Cancelar
+          </Button>
+          <Button variant="destructive" onClick={handleDeleteConfirm} size="sm">
+            Eliminar
+          </Button>
+        </div>
+      </DialogContent>
+         </Dialog>
+   </>
   )
 }

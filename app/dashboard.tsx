@@ -8,6 +8,7 @@ import { CategoriasSection } from "./components/categorias-section"
 import { MarcasSection } from "./components/marcas-section"
 import { PlanesSection } from "./components/planes-section"
 import { ProductosPlanSection } from "./components/productos-plan-section"
+import { WhatsAppConfig } from "./components/whatsapp-config"
 import { useSupabaseData } from "./hooks/use-supabase-data"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -30,11 +31,13 @@ function Dashboard() {
     productosPorPlan, 
     categorias,
     marcas,
+    configuracion,
     loading, 
     error,
     createProducto,
     updateProducto,
     deleteProducto,
+    getPlanesAsociados,
     createCategoria,
     updateCategoria,
     deleteCategoria,
@@ -47,6 +50,7 @@ function Dashboard() {
     createProductoPlan,
     updateProductoPlan,
     deleteProductoPlan,
+    updateConfiguracion,
     refreshData
   } = useSupabaseData()
 
@@ -110,6 +114,8 @@ function Dashboard() {
         return "Planes de Financiación"
       case "productos-plan":
         return "Productos por Plan"
+      case "configuracion":
+        return "Configuración"
       default:
         return "Dashboard"
     }
@@ -139,9 +145,12 @@ function Dashboard() {
             productos={productos} 
             categorias={categorias}
             marcas={marcas}
+            productosPorPlan={productosPorPlan}
+            configuracion={configuracion}
             onCreateProducto={createProducto}
             onUpdateProducto={updateProducto}
             onDeleteProducto={deleteProducto}
+            getPlanesAsociados={getPlanesAsociados}
           />
         )
       case "categorias":
@@ -181,6 +190,15 @@ function Dashboard() {
             onUpdateProductoPlan={updateProductoPlan}
             onDeleteProductoPlan={deleteProductoPlan}
           />
+        )
+      case "configuracion":
+        return (
+          <div className="space-y-6">
+            <WhatsAppConfig 
+              configuracion={configuracion}
+              onUpdateConfiguracion={updateConfiguracion}
+            />
+          </div>
         )
       default:
         return <DashboardSection productos={productos} planes={planes} productosPorPlan={productosPorPlan} />

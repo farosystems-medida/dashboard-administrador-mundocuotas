@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Plus, Edit, Trash2, Grid, List } from "lucide-react"
+import { Plus, Edit, Trash2, Grid, List, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -16,21 +16,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ProductSearch } from "./product-search"
 import { ExcelGenerator } from "./excel-generator"
 import { PriceUpdater } from "./price-updater"
+import { openWhatsApp } from "@/lib/whatsapp-utils"
 import type { Producto, Categoria, Marca } from "@/lib/supabase"
 
 interface ProductosSectionProps {
   productos: Producto[]
   categorias: Categoria[]
   marcas: Marca[]
+  productosPorPlan: any[]
+  configuracion: any
   onCreateProducto: (producto: Omit<Producto, 'id' | 'created_at' | 'categoria' | 'marca'>) => Promise<Producto | undefined>
   onUpdateProducto: (id: number, updates: Partial<Producto>) => Promise<Producto | undefined>
   onDeleteProducto: (id: number) => Promise<void>
+  getPlanesAsociados: (productoId: number) => Promise<any[]>
 }
 
-export function ProductosSection({ productos, categorias, marcas, onCreateProducto, onUpdateProducto, onDeleteProducto }: ProductosSectionProps) {
+export function ProductosSection({ productos, categorias, marcas, productosPorPlan, configuracion, onCreateProducto, onUpdateProducto, onDeleteProducto, getPlanesAsociados }: ProductosSectionProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null)
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [productToDelete, setProductToDelete] = useState<Producto | null>(null)
+  const [planesAsociados, setPlanesAsociados] = useState<any[]>([])
+  const [isLoadingPlanes, setIsLoadingPlanes] = useState(false)
   const [formData, setFormData] = useState({
     descripcion: "",
     descripcion_detallada: "",
@@ -98,12 +106,43 @@ export function ProductosSection({ productos, categorias, marcas, onCreateProduc
     setIsDialogOpen(true)
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDeleteClick = async (producto: Producto) => {
+    setProductToDelete(producto)
+    setIsLoadingPlanes(true)
+    
     try {
-      await onDeleteProducto(id)
+      // Usar datos ya cargados en lugar de hacer nueva consulta
+      const planesAsociados = productosPorPlan.filter(item => item.fk_id_producto === producto.id)
+      console.log('Planes asociados encontrados:', planesAsociados)
+      setPlanesAsociados(planesAsociados)
+    } catch (error) {
+      console.error('Error al obtener planes asociados:', error)
+      setPlanesAsociados([])
+    } finally {
+      setIsLoadingPlanes(false)
+    }
+    
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete) return
+    
+    try {
+      await onDeleteProducto(productToDelete.id)
+      setIsDeleteDialogOpen(false)
+      setProductToDelete(null)
+      setPlanesAsociados([])
     } catch (error) {
       console.error('Error al eliminar producto:', error)
+      alert('Error al eliminar producto. Verifica que no esté asociado a ningún plan de financiación.')
     }
+  }
+
+  const handleDeleteCancel = () => {
+    setIsDeleteDialogOpen(false)
+    setProductToDelete(null)
+    setPlanesAsociados([])
   }
 
   const formatPrice = (price: number) => {
@@ -114,8 +153,9 @@ export function ProductosSection({ productos, categorias, marcas, onCreateProduc
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Gestión de Productos</CardTitle>
         <div className="flex items-center space-x-2">
           {/* Botón de cambio de vista */}
@@ -379,7 +419,15 @@ export function ProductosSection({ productos, categorias, marcas, onCreateProduc
                       <Button variant="outline" size="sm" onClick={() => handleEdit(producto)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDelete(producto.id)}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => openWhatsApp(producto.descripcion, configuracion)}
+                        className="text-green-600 hover:text-green-700"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleDeleteClick(producto)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -464,7 +512,16 @@ export function ProductosSection({ productos, categorias, marcas, onCreateProduc
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        onClick={() => handleDelete(producto.id)}
+                        onClick={() => openWhatsApp(producto.descripcion, configuracion)}
+                        className="flex-1 text-xs text-green-600 hover:text-green-700"
+                      >
+                        <MessageCircle className="h-3 w-3 mr-1" />
+                        WhatsApp
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleDeleteClick(producto)}
                         className="flex-1 text-xs text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="h-3 w-3 mr-1" />
@@ -479,5 +536,81 @@ export function ProductosSection({ productos, categorias, marcas, onCreateProduc
         )}
       </CardContent>
     </Card>
+
+    {/* Popup de confirmación de eliminación */}
+    <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Confirmar eliminación</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div>
+            <p className="text-gray-700 text-sm">
+              ¿Estás seguro de que quieres eliminar el producto <strong>"{productToDelete?.descripcion}"</strong>?
+            </p>
+          </div>
+
+          {isLoadingPlanes ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+              <span className="ml-2 text-sm text-gray-600">Verificando planes asociados...</span>
+            </div>
+          ) : planesAsociados.length > 0 ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="flex items-center mb-2">
+                <span className="text-red-600 text-lg mr-2">⚠️</span>
+                <span className="font-medium text-red-800 text-sm">No se puede eliminar</span>
+              </div>
+              <p className="text-red-700 text-xs mb-3">
+                Este producto está asociado a los siguientes planes de financiación:
+              </p>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {planesAsociados.map((item, index) => (
+                  <div key={index} className="bg-white border border-red-200 rounded p-2">
+                    <div className="font-medium text-xs">
+                      {item.plan?.nombre || `Plan ID: ${item.fk_id_plan}`}
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      Cuotas: {item.plan?.cuotas || 'N/A'} • Interés: {item.plan?.recargo_porcentual || 'N/A'}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-red-700 text-xs mt-3">
+                Primero debes eliminar estas asociaciones en la sección "Productos por Plan".
+              </p>
+            </div>
+          ) : (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="flex items-center">
+                <span className="text-yellow-600 text-lg mr-2">⚠️</span>
+                <span className="font-medium text-yellow-800 text-sm">Atención</span>
+              </div>
+              <p className="text-yellow-700 text-xs mt-1">
+                Esta acción no se puede deshacer. El producto será eliminado permanentemente.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button variant="outline" onClick={handleDeleteCancel} size="sm">
+            Cancelar
+          </Button>
+          {planesAsociados.length === 0 && (
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteConfirm}
+              disabled={isLoadingPlanes}
+              size="sm"
+            >
+              Eliminar
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

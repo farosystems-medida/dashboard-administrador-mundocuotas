@@ -57,4 +57,11 @@ export interface ProductoPlan {
   created_at: string
   producto?: Producto
   plan?: PlanFinanciacion
+}
+
+// Tipo para la configuración
+export interface Configuracion {
+  id: number
+  created_at: string
+  telefono: string | null
 } 

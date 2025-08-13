@@ -21,6 +21,8 @@ interface MarcasSectionProps {
 
 export function MarcasSection({ marcas, onCreateMarca, onUpdateMarca, onDeleteMarca }: MarcasSectionProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [marcaToDelete, setMarcaToDelete] = useState<Marca | null>(null)
   const [editingMarca, setEditingMarca] = useState<Marca | null>(null)
   const [formData, setFormData] = useState({
     descripcion: "",
@@ -61,16 +63,30 @@ export function MarcasSection({ marcas, onCreateMarca, onUpdateMarca, onDeleteMa
     setIsDialogOpen(true)
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDeleteClick = (marca: Marca) => {
+    setMarcaToDelete(marca)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!marcaToDelete) return
     try {
-      await onDeleteMarca(id)
+      await onDeleteMarca(marcaToDelete.id)
+      setIsDeleteDialogOpen(false)
+      setMarcaToDelete(null)
     } catch (error) {
       console.error('Error al eliminar marca:', error)
     }
   }
 
+  const handleDeleteCancel = () => {
+    setIsDeleteDialogOpen(false)
+    setMarcaToDelete(null)
+  }
+
   return (
-    <Card>
+    <>
+      <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Gestión de Marcas</CardTitle>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -138,7 +154,7 @@ export function MarcasSection({ marcas, onCreateMarca, onUpdateMarca, onDeleteMa
                     <Button variant="outline" size="sm" onClick={() => handleEdit(marca)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDelete(marca.id)}>
+                    <Button variant="outline" size="sm" onClick={() => handleDeleteClick(marca)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -149,5 +165,39 @@ export function MarcasSection({ marcas, onCreateMarca, onUpdateMarca, onDeleteMa
         </Table>
       </CardContent>
     </Card>
+
+    {/* Modal de confirmación de eliminación */}
+    <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Confirmar eliminación</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <p className="text-gray-700 text-sm">
+              ¿Estás seguro de que quieres eliminar la marca <strong>"{marcaToDelete?.descripcion}"</strong>?
+            </p>
+          </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="flex items-center">
+              <span className="text-yellow-600 text-lg mr-2">⚠️</span>
+              <span className="font-medium text-yellow-800 text-sm">Atención</span>
+            </div>
+            <p className="text-yellow-700 text-xs mt-1">
+              Esta acción no se puede deshacer. La marca será eliminada permanentemente.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button variant="outline" onClick={handleDeleteCancel} size="sm">
+            Cancelar
+          </Button>
+          <Button variant="destructive" onClick={handleDeleteConfirm} size="sm">
+            Eliminar
+          </Button>
+        </div>
+      </DialogContent>
+         </Dialog>
+   </>
   )
 } 

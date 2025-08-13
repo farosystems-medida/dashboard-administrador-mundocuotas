@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { supabase, Producto, PlanFinanciacion, ProductoPlan, Categoria, Marca } from '@/lib/supabase'
+import { supabase, Producto, PlanFinanciacion, ProductoPlan, Categoria, Marca, Configuracion } from '@/lib/supabase'
 import { testSupabaseConnection } from '@/lib/supabase-debug'
 import { setupSupabaseAuth } from '@/lib/supabase-auth'
 import { useUser } from '@clerk/nextjs'
@@ -13,6 +13,7 @@ export function useSupabaseData() {
   const [productosPorPlan, setProductosPorPlan] = useState<ProductoPlan[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [marcas, setMarcas] = useState<Marca[]>([])
+  const [configuracion, setConfiguracion] = useState<Configuracion | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -146,6 +147,32 @@ export function useSupabaseData() {
       setError('Error al actualizar producto')
       console.error('Error updating producto:', err)
       throw err
+    }
+  }
+
+  // Obtener planes asociados a un producto
+  const getPlanesAsociados = async (productoId: number) => {
+    try {
+      console.log('Buscando planes asociados para producto ID:', productoId)
+      
+      const { data, error } = await supabase
+        .from('producto_planes')
+        .select(`
+          *,
+          plan:fk_id_plan(*)
+        `)
+        .eq('fk_id_producto', productoId)
+
+      if (error) {
+        console.error('Error en consulta Supabase:', error)
+        throw error
+      }
+      
+      console.log('Datos obtenidos de Supabase:', data)
+      return data || []
+    } catch (err) {
+      console.error('Error getting planes asociados:', err)
+      return []
     }
   }
 
@@ -382,6 +409,65 @@ export function useSupabaseData() {
     }
   }
 
+  // Cargar configuración
+  const loadConfiguracion = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('configuracion')
+        .select('*')
+        .limit(1)
+        .single()
+
+      if (error) throw error
+      setConfiguracion(data)
+    } catch (err) {
+      setError('Error al cargar configuración')
+      console.error('Error loading configuracion:', err)
+    }
+  }
+
+  // Actualizar configuración
+  const updateConfiguracion = async (telefono: string) => {
+    try {
+      let { data, error } = await supabase
+        .from('configuracion')
+        .select('*')
+        .limit(1)
+        .single()
+
+      if (error && error.code === 'PGRST116') {
+        // Si no existe, crear el registro
+        const { data: newData, error: insertError } = await supabase
+          .from('configuracion')
+          .insert([{ telefono }])
+          .select()
+          .single()
+
+        if (insertError) throw insertError
+        setConfiguracion(newData)
+        return newData
+      } else if (error) {
+        throw error
+      } else {
+        // Si existe, actualizar
+        const { data: updatedData, error: updateError } = await supabase
+          .from('configuracion')
+          .update({ telefono })
+          .eq('id', data.id)
+          .select()
+          .single()
+
+        if (updateError) throw updateError
+        setConfiguracion(updatedData)
+        return updatedData
+      }
+    } catch (err) {
+      setError('Error al actualizar configuración')
+      console.error('Error updating configuracion:', err)
+      throw err
+    }
+  }
+
   // Cargar todos los datos cuando el usuario esté autenticado
   useEffect(() => {
     if (isLoaded && user) {
@@ -406,7 +492,8 @@ export function useSupabaseData() {
             loadPlanes(),
             loadProductosPorPlan(),
             loadCategorias(),
-            loadMarcas()
+            loadMarcas(),
+            loadConfiguracion()
           ]).finally(() => setLoading(false))
         })
       })
@@ -424,6 +511,7 @@ export function useSupabaseData() {
     createProducto,
     updateProducto,
     deleteProducto,
+    getPlanesAsociados,
     createPlan,
     updatePlan,
     deletePlan,
@@ -436,6 +524,8 @@ export function useSupabaseData() {
     createProductoPlan,
     updateProductoPlan,
     deleteProductoPlan,
+    configuracion,
+    updateConfiguracion,
     refreshData: () => {
       setLoading(true)
       Promise.all([
@@ -443,7 +533,8 @@ export function useSupabaseData() {
         loadPlanes(),
         loadProductosPorPlan(),
         loadCategorias(),
-        loadMarcas()
+        loadMarcas(),
+        loadConfiguracion()
       ]).finally(() => setLoading(false))
     }
   }

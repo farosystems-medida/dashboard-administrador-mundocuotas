@@ -32,6 +32,8 @@ export function ProductosPlanSection({
   onDeleteProductoPlan,
 }: ProductosPlanSectionProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<ProductoPlan | null>(null)
   const [editingItem, setEditingItem] = useState<ProductoPlan | null>(null)
   const [formData, setFormData] = useState({
     productoId: "",
@@ -103,12 +105,25 @@ export function ProductosPlanSection({
     setIsDialogOpen(true)
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDeleteClick = (item: ProductoPlan) => {
+    setItemToDelete(item)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!itemToDelete) return
     try {
-      await onDeleteProductoPlan(id)
+      await onDeleteProductoPlan(itemToDelete.id)
+      setIsDeleteDialogOpen(false)
+      setItemToDelete(null)
     } catch (error) {
       console.error('Error al eliminar producto por plan:', error)
     }
+  }
+
+  const handleDeleteCancel = () => {
+    setIsDeleteDialogOpen(false)
+    setItemToDelete(null)
   }
 
   const getProductoNombre = (id: number) => {
@@ -132,7 +147,8 @@ export function ProductosPlanSection({
   }
 
   return (
-    <Card>
+    <>
+      <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Gestión de Productos por Plan</CardTitle>
                                         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -208,7 +224,7 @@ export function ProductosPlanSection({
         </Dialog>
       </CardHeader>
       <CardContent>
-                <Table>
+        <Table>
           <TableHeader>
             <TableRow>
               <TableHead>ID</TableHead>
@@ -247,7 +263,7 @@ export function ProductosPlanSection({
                       <Button variant="outline" size="sm" onClick={() => handleEdit(item)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDelete(item.id)}>
+                      <Button variant="outline" size="sm" onClick={() => handleDeleteClick(item)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -259,5 +275,39 @@ export function ProductosPlanSection({
         </Table>
       </CardContent>
     </Card>
+
+    {/* Modal de confirmación de eliminación */}
+    <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Confirmar eliminación</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <p className="text-gray-700 text-sm">
+              ¿Estás seguro de que quieres eliminar la asociación entre <strong>"{itemToDelete ? getProductoNombre(itemToDelete.fk_id_producto) : 'N/A'}"</strong> y <strong>"{itemToDelete ? getPlanNombre(itemToDelete.fk_id_plan) : 'N/A'}"</strong>?
+            </p>
+          </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="flex items-center">
+              <span className="text-yellow-600 text-lg mr-2">⚠️</span>
+              <span className="font-medium text-yellow-800 text-sm">Atención</span>
+            </div>
+            <p className="text-yellow-700 text-xs mt-1">
+              Esta acción no se puede deshacer. La asociación será eliminada permanentemente.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button variant="outline" onClick={handleDeleteCancel} size="sm">
+            Cancelar
+          </Button>
+          <Button variant="destructive" onClick={handleDeleteConfirm} size="sm">
+            Eliminar
+          </Button>
+        </div>
+      </DialogContent>
+         </Dialog>
+   </>
   )
 }
