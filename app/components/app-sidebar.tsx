@@ -1,6 +1,6 @@
 "use client"
 
-import { Package, CreditCard, Link2, BarChart3, Tag, Award, Settings } from "lucide-react"
+import { Package, CreditCard, Link2, BarChart3, Tag, Award, Settings, MapPin } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -34,6 +34,11 @@ const menuItems = [
     title: "Marcas",
     icon: Award,
     url: "#marcas",
+  },
+  {
+    title: "Zonas",
+    icon: MapPin,
+    url: "#zonas",
   },
   {
     title: "Planes de Financiación",

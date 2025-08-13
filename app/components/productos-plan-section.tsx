@@ -21,6 +21,7 @@ interface ProductosPlanSectionProps {
   onCreateProductoPlan: (productoPlan: Omit<ProductoPlan, 'id' | 'created_at' | 'producto' | 'plan'>) => Promise<ProductoPlan | undefined>
   onUpdateProductoPlan: (id: number, updates: Partial<ProductoPlan>) => Promise<ProductoPlan | undefined>
   onDeleteProductoPlan: (id: number) => Promise<void>
+  onUpdateProducto: (id: number, updates: Partial<Producto>) => Promise<Producto | undefined>
 }
 
 export function ProductosPlanSection({
@@ -30,6 +31,7 @@ export function ProductosPlanSection({
   onCreateProductoPlan,
   onUpdateProductoPlan,
   onDeleteProductoPlan,
+  onUpdateProducto,
 }: ProductosPlanSectionProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -39,6 +41,7 @@ export function ProductosPlanSection({
     productoId: "",
     planId: "",
     activo: true,
+    destacado: false,
   })
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null)
 
@@ -47,6 +50,7 @@ export function ProductosPlanSection({
       productoId: "",
       planId: "",
       activo: true,
+      destacado: false,
     })
     setSelectedProduct(null)
     setEditingItem(null)
@@ -74,10 +78,17 @@ export function ProductosPlanSection({
       return
     }
 
+    // Validar que no se intente marcar como destacado un producto que ya lo está
+    if (formData.destacado && selectedProduct.destacado) {
+      alert("Este producto ya está marcado como destacado. No se puede marcar nuevamente.")
+      return
+    }
+
     const itemData = {
       fk_id_producto: selectedProduct.id,
       fk_id_plan: Number.parseInt(formData.planId),
       activo: formData.activo,
+      destacado: formData.destacado,
     }
 
     try {
@@ -86,6 +97,12 @@ export function ProductosPlanSection({
       } else {
         await onCreateProductoPlan(itemData)
       }
+
+      // Si se marca como destacado y el producto no lo está ya, actualizar el producto
+      if (formData.destacado && selectedProduct && !selectedProduct.destacado) {
+        await onUpdateProducto(selectedProduct.id, { destacado: true })
+      }
+
       setIsDialogOpen(false)
       resetForm()
     } catch (error) {
@@ -101,6 +118,7 @@ export function ProductosPlanSection({
       productoId: item.fk_id_producto.toString(),
       planId: item.fk_id_plan.toString(),
       activo: item.activo,
+      destacado: item.destacado && !producto?.destacado, // Solo permitir destacado si el producto no lo está ya
     })
     setIsDialogOpen(true)
   }
@@ -216,6 +234,33 @@ export function ProductosPlanSection({
                 />
                 <Label htmlFor="activo">Activo</Label>
               </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="destacado"
+                  checked={formData.destacado}
+                  onCheckedChange={(checked) => setFormData({ ...formData, destacado: checked })}
+                  disabled={selectedProduct?.destacado}
+                />
+                <Label htmlFor="destacado" className={selectedProduct?.destacado ? "text-gray-500" : ""}>
+                  Destacar Producto
+                  {selectedProduct?.destacado && (
+                    <span className="ml-2 text-xs text-yellow-600 font-medium">
+                      (Ya está destacado)
+                    </span>
+                  )}
+                </Label>
+              </div>
+              {selectedProduct?.destacado && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="flex items-center">
+                    <span className="text-yellow-600 text-lg mr-2">⭐</span>
+                    <span className="font-medium text-yellow-800 text-sm">Producto ya destacado</span>
+                  </div>
+                  <p className="text-yellow-700 text-xs mt-1">
+                    Este producto ya está marcado como destacado en la tabla de productos.
+                  </p>
+                </div>
+              )}
               <Button type="submit" className="w-full">
                 {editingItem ? "Actualizar" : "Crear"} Asociación
               </Button>
@@ -233,6 +278,7 @@ export function ProductosPlanSection({
               <TableHead>Precio Original</TableHead>
               <TableHead>Cuota Mensual</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Destacado</TableHead>
               <TableHead>Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -245,7 +291,14 @@ export function ProductosPlanSection({
               return (
                 <TableRow key={item.id}>
                   <TableCell>{item.id}</TableCell>
-                  <TableCell className="font-medium">{getProductoNombre(item.fk_id_producto)}</TableCell>
+                  <TableCell className="font-medium">
+                    {getProductoNombre(item.fk_id_producto)}
+                    {producto?.destacado && (
+                      <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                        ⭐ Destacado
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>{getPlanNombre(item.fk_id_plan)}</TableCell>
                   <TableCell>{producto ? formatPrice(producto.precio) : '-'}</TableCell>
                   <TableCell>{formatPrice(cuotaMensual)}</TableCell>
@@ -256,6 +309,15 @@ export function ProductosPlanSection({
                       }`}
                     >
                       {item.activo ? "Activo" : "Inactivo"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        item.destacado ? "bg-yellow-100 text-yellow-800" : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {item.destacado ? "Destacado" : "Normal"}
                     </span>
                   </TableCell>
                   <TableCell>

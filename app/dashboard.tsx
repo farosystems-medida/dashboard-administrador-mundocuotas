@@ -6,9 +6,10 @@ import { DashboardSection } from "./components/dashboard-section"
 import { ProductosSection } from "./components/productos-section"
 import { CategoriasSection } from "./components/categorias-section"
 import { MarcasSection } from "./components/marcas-section"
+import { ZonasSection } from "./components/zonas-section"
 import { PlanesSection } from "./components/planes-section"
 import { ProductosPlanSection } from "./components/productos-plan-section"
-import { WhatsAppConfig } from "./components/whatsapp-config"
+import { ConfiguracionZonas } from "./components/configuracion-zonas"
 import { useSupabaseData } from "./hooks/use-supabase-data"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -31,7 +32,9 @@ function Dashboard() {
     productosPorPlan, 
     categorias,
     marcas,
+    zonas,
     configuracion,
+    configuracionZonas,
     loading, 
     error,
     createProducto,
@@ -44,6 +47,12 @@ function Dashboard() {
     createMarca,
     updateMarca,
     deleteMarca,
+    createZona,
+    updateZona,
+    deleteZona,
+    createConfiguracionZona,
+    updateConfiguracionZona,
+    deleteConfiguracionZona,
     createPlan,
     updatePlan,
     deletePlan,
@@ -110,6 +119,8 @@ function Dashboard() {
         return "Categorías"
       case "marcas":
         return "Marcas"
+      case "zonas":
+        return "Zonas"
       case "planes":
         return "Planes de Financiación"
       case "productos-plan":
@@ -171,6 +182,15 @@ function Dashboard() {
             onDeleteMarca={deleteMarca}
           />
         )
+      case "zonas":
+        return (
+          <ZonasSection 
+            zonas={zonas} 
+            onCreateZona={createZona}
+            onUpdateZona={updateZona}
+            onDeleteZona={deleteZona}
+          />
+        )
       case "planes":
         return (
           <PlanesSection 
@@ -189,14 +209,18 @@ function Dashboard() {
             onCreateProductoPlan={createProductoPlan}
             onUpdateProductoPlan={updateProductoPlan}
             onDeleteProductoPlan={deleteProductoPlan}
+            onUpdateProducto={updateProducto}
           />
         )
       case "configuracion":
         return (
           <div className="space-y-6">
-            <WhatsAppConfig 
-              configuracion={configuracion}
-              onUpdateConfiguracion={updateConfiguracion}
+            <ConfiguracionZonas
+              zonas={zonas}
+              configuracionZonas={configuracionZonas}
+              onCreateConfiguracionZona={createConfiguracionZona}
+              onUpdateConfiguracionZona={updateConfiguracionZona}
+              onDeleteConfiguracionZona={deleteConfiguracionZona}
             />
           </div>
         )

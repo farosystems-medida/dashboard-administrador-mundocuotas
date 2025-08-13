@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { supabase, Producto, PlanFinanciacion, ProductoPlan, Categoria, Marca, Configuracion } from '@/lib/supabase'
+import { supabase, Producto, PlanFinanciacion, ProductoPlan, ProductoPlanDefault, Categoria, Marca, Zona, Configuracion, ConfiguracionZona } from '@/lib/supabase'
 import { testSupabaseConnection } from '@/lib/supabase-debug'
 import { setupSupabaseAuth } from '@/lib/supabase-auth'
 import { useUser } from '@clerk/nextjs'
@@ -11,9 +11,12 @@ export function useSupabaseData() {
   const [productos, setProductos] = useState<Producto[]>([])
   const [planes, setPlanes] = useState<PlanFinanciacion[]>([])
   const [productosPorPlan, setProductosPorPlan] = useState<ProductoPlan[]>([])
+  const [productosPorPlanDefault, setProductosPorPlanDefault] = useState<ProductoPlanDefault[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [marcas, setMarcas] = useState<Marca[]>([])
+  const [zonas, setZonas] = useState<Zona[]>([])
   const [configuracion, setConfiguracion] = useState<Configuracion | null>(null)
+  const [configuracionZonas, setConfiguracionZonas] = useState<ConfiguracionZona[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -73,6 +76,26 @@ export function useSupabaseData() {
     }
   }
 
+  // Cargar productos por plan por defecto
+  const loadProductosPorPlanDefault = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('producto_planes_default')
+        .select(`
+          *,
+          producto:fk_id_producto(*),
+          plan:fk_id_plan(*)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setProductosPorPlanDefault(data || [])
+    } catch (err) {
+      setError('Error al cargar productos por plan por defecto')
+      console.error('Error loading productos_plan_default:', err)
+    }
+  }
+
   // Cargar categorías
   const loadCategorias = async () => {
     try {
@@ -105,6 +128,41 @@ export function useSupabaseData() {
     }
   }
 
+  // Cargar zonas
+  const loadZonas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('zonas')
+        .select('*')
+        .order('nombre', { ascending: true })
+
+      if (error) throw error
+      setZonas(data || [])
+    } catch (err) {
+      setError('Error al cargar zonas')
+      console.error('Error loading zonas:', err)
+    }
+  }
+
+  // Cargar configuración de zonas
+  const loadConfiguracionZonas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('configuracion_zonas')
+        .select(`
+          *,
+          zona:fk_id_zona(*)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setConfiguracionZonas(data || [])
+    } catch (err) {
+      setError('Error al cargar configuración de zonas')
+      console.error('Error loading configuracion_zonas:', err)
+    }
+  }
+
   // Crear producto
   const createProducto = async (producto: Omit<Producto, 'id' | 'created_at' | 'categoria' | 'marca'>) => {
     try {
@@ -121,6 +179,17 @@ export function useSupabaseData() {
       }
       
       console.log('Producto created successfully:', data)
+      
+      // Crear asociaciones por defecto para el nuevo producto
+      if (data?.[0]) {
+        try {
+          await createDefaultAssociationsForProduct(data[0].id)
+        } catch (defaultError) {
+          console.warn('Error creating default associations:', defaultError)
+          // No fallar la creación del producto si fallan las asociaciones por defecto
+        }
+      }
+      
       await loadProductos()
       return data?.[0]
     } catch (err) {
@@ -150,12 +219,13 @@ export function useSupabaseData() {
     }
   }
 
-  // Obtener planes asociados a un producto
+  // Obtener planes asociados a un producto (combinando específicos y por defecto)
   const getPlanesAsociados = async (productoId: number) => {
     try {
       console.log('Buscando planes asociados para producto ID:', productoId)
       
-      const { data, error } = await supabase
+      // Obtener asociaciones específicas
+      const { data: specificData, error: specificError } = await supabase
         .from('producto_planes')
         .select(`
           *,
@@ -163,13 +233,40 @@ export function useSupabaseData() {
         `)
         .eq('fk_id_producto', productoId)
 
-      if (error) {
-        console.error('Error en consulta Supabase:', error)
-        throw error
+      if (specificError) {
+        console.error('Error en consulta Supabase:', specificError)
+        throw specificError
       }
-      
-      console.log('Datos obtenidos de Supabase:', data)
-      return data || []
+
+      // Si hay asociaciones específicas, devolverlas
+      if (specificData && specificData.length > 0) {
+        console.log('Datos específicos obtenidos de Supabase:', specificData)
+        return specificData
+      }
+
+      // Si no hay asociaciones específicas, obtener las por defecto
+      const { data: defaultData, error: defaultError } = await supabase
+        .from('producto_planes_default')
+        .select(`
+          *,
+          plan:fk_id_plan(*)
+        `)
+        .eq('fk_id_producto', productoId)
+
+      if (defaultError) {
+        console.error('Error en consulta por defecto:', defaultError)
+        throw defaultError
+      }
+
+      // Convertir las asociaciones por defecto al formato esperado
+      const convertedData = defaultData?.map(item => ({
+        ...item,
+        activo: true,
+        destacado: false
+      })) || []
+
+      console.log('Datos por defecto convertidos:', convertedData)
+      return convertedData
     } catch (err) {
       console.error('Error getting planes asociados:', err)
       return []
@@ -355,6 +452,114 @@ export function useSupabaseData() {
     }
   }
 
+  // Crear zona
+  const createZona = async (zona: Omit<Zona, 'id' | 'created_at'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('zonas')
+        .insert([zona])
+        .select()
+
+      if (error) throw error
+      await loadZonas()
+      return data?.[0]
+    } catch (err) {
+      setError('Error al crear zona')
+      console.error('Error creating zona:', err)
+      throw err
+    }
+  }
+
+  // Actualizar zona
+  const updateZona = async (id: number, updates: Partial<Zona>) => {
+    try {
+      const { data, error } = await supabase
+        .from('zonas')
+        .update(updates)
+        .eq('id', id)
+        .select()
+
+      if (error) throw error
+      await loadZonas()
+      return data?.[0]
+    } catch (err) {
+      setError('Error al actualizar zona')
+      console.error('Error updating zona:', err)
+      throw err
+    }
+  }
+
+  // Eliminar zona
+  const deleteZona = async (id: number) => {
+    try {
+      const { error } = await supabase
+        .from('zonas')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      await loadZonas()
+    } catch (err) {
+      setError('Error al eliminar zona')
+      console.error('Error deleting zona:', err)
+      throw err
+    }
+  }
+
+  // Crear configuración de zona
+  const createConfiguracionZona = async (configuracionZona: Omit<ConfiguracionZona, 'id' | 'created_at' | 'zona'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('configuracion_zonas')
+        .insert([configuracionZona])
+        .select()
+
+      if (error) throw error
+      await loadConfiguracionZonas()
+      return data?.[0]
+    } catch (err) {
+      setError('Error al crear configuración de zona')
+      console.error('Error creating configuracion_zona:', err)
+      throw err
+    }
+  }
+
+  // Actualizar configuración de zona
+  const updateConfiguracionZona = async (id: number, updates: Partial<ConfiguracionZona>) => {
+    try {
+      const { data, error } = await supabase
+        .from('configuracion_zonas')
+        .update(updates)
+        .eq('id', id)
+        .select()
+
+      if (error) throw error
+      await loadConfiguracionZonas()
+      return data?.[0]
+    } catch (err) {
+      setError('Error al actualizar configuración de zona')
+      console.error('Error updating configuracion_zona:', err)
+      throw err
+    }
+  }
+
+  // Eliminar configuración de zona
+  const deleteConfiguracionZona = async (id: number) => {
+    try {
+      const { error } = await supabase
+        .from('configuracion_zonas')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      await loadConfiguracionZonas()
+    } catch (err) {
+      setError('Error al eliminar configuración de zona')
+      console.error('Error deleting configuracion_zona:', err)
+      throw err
+    }
+  }
+
   // Crear producto por plan
   const createProductoPlan = async (productoPlan: Omit<ProductoPlan, 'id' | 'created_at' | 'producto' | 'plan'>) => {
     try {
@@ -405,6 +610,72 @@ export function useSupabaseData() {
     } catch (err) {
       setError('Error al eliminar producto por plan')
       console.error('Error deleting producto_plan:', err)
+      throw err
+    }
+  }
+
+  // Crear asociación por defecto
+  const createProductoPlanDefault = async (productoPlanDefault: Omit<ProductoPlanDefault, 'id' | 'created_at' | 'producto' | 'plan'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('producto_planes_default')
+        .insert([productoPlanDefault])
+        .select()
+
+      if (error) throw error
+      await loadProductosPorPlanDefault()
+      return data?.[0]
+    } catch (err) {
+      setError('Error al crear asociación por defecto')
+      console.error('Error creating producto_plan_default:', err)
+      throw err
+    }
+  }
+
+  // Eliminar asociación por defecto
+  const deleteProductoPlanDefault = async (productoId: number, planId: number) => {
+    try {
+      const { error } = await supabase
+        .from('producto_planes_default')
+        .delete()
+        .eq('fk_id_producto', productoId)
+        .eq('fk_id_plan', planId)
+
+      if (error) throw error
+      await loadProductosPorPlanDefault()
+    } catch (err) {
+      setError('Error al eliminar asociación por defecto')
+      console.error('Error deleting producto_plan_default:', err)
+      throw err
+    }
+  }
+
+  // Crear asociaciones por defecto para un producto (todos los planes)
+  const createDefaultAssociationsForProduct = async (productoId: number) => {
+    try {
+      // Obtener todos los planes activos
+      const { data: planes, error: planesError } = await supabase
+        .from('planes_financiacion')
+        .select('id')
+        .eq('activo', true)
+
+      if (planesError) throw planesError
+
+      // Crear asociaciones por defecto para todos los planes
+      const defaultAssociations = planes.map(plan => ({
+        fk_id_producto: productoId,
+        fk_id_plan: plan.id
+      }))
+
+      const { error } = await supabase
+        .from('producto_planes_default')
+        .insert(defaultAssociations)
+
+      if (error) throw error
+      await loadProductosPorPlanDefault()
+    } catch (err) {
+      setError('Error al crear asociaciones por defecto para el producto')
+      console.error('Error creating default associations:', err)
       throw err
     }
   }
@@ -491,8 +762,11 @@ export function useSupabaseData() {
             loadProductos(),
             loadPlanes(),
             loadProductosPorPlan(),
+            loadProductosPorPlanDefault(),
             loadCategorias(),
             loadMarcas(),
+            loadZonas(),
+            loadConfiguracionZonas(),
             loadConfiguracion()
           ]).finally(() => setLoading(false))
         })
@@ -504,8 +778,11 @@ export function useSupabaseData() {
     productos,
     planes,
     productosPorPlan,
+    productosPorPlanDefault,
     categorias,
     marcas,
+    zonas,
+    configuracionZonas,
     loading,
     error,
     createProducto,
@@ -521,9 +798,18 @@ export function useSupabaseData() {
     createMarca,
     updateMarca,
     deleteMarca,
+    createZona,
+    updateZona,
+    deleteZona,
+    createConfiguracionZona,
+    updateConfiguracionZona,
+    deleteConfiguracionZona,
     createProductoPlan,
     updateProductoPlan,
     deleteProductoPlan,
+    createProductoPlanDefault,
+    deleteProductoPlanDefault,
+    createDefaultAssociationsForProduct,
     configuracion,
     updateConfiguracion,
     refreshData: () => {
@@ -532,8 +818,11 @@ export function useSupabaseData() {
         loadProductos(),
         loadPlanes(),
         loadProductosPorPlan(),
+        loadProductosPorPlanDefault(),
         loadCategorias(),
         loadMarcas(),
+        loadZonas(),
+        loadConfiguracionZonas(),
         loadConfiguracion()
       ]).finally(() => setLoading(false))
     }

@@ -27,6 +27,10 @@ export interface Producto {
   descripcion_detallada?: string
   precio: number
   imagen?: string
+  imagen_2?: string
+  imagen_3?: string
+  imagen_4?: string
+  imagen_5?: string
   destacado?: boolean
   fk_id_categoria?: number
   fk_id_marca?: number
@@ -54,9 +58,27 @@ export interface ProductoPlan {
   fk_id_producto: number
   fk_id_plan: number
   activo: boolean
+  destacado: boolean
   created_at: string
   producto?: Producto
   plan?: PlanFinanciacion
+}
+
+// Tipos para productos por plan por defecto (tabla oculta)
+export interface ProductoPlanDefault {
+  id: number
+  fk_id_producto: number
+  fk_id_plan: number
+  created_at: string
+  producto?: Producto
+  plan?: PlanFinanciacion
+}
+
+// Tipo para las zonas
+export interface Zona {
+  id: number
+  nombre: string | null
+  created_at: string
 }
 
 // Tipo para la configuración
@@ -64,4 +86,13 @@ export interface Configuracion {
   id: number
   created_at: string
   telefono: string | null
+}
+
+// Tipo para la configuración de zonas
+export interface ConfiguracionZona {
+  id: number
+  fk_id_zona: number
+  telefono: string
+  created_at: string
+  zona?: Zona
 } 

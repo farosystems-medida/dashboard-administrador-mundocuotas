@@ -196,6 +196,9 @@ export function PriceUpdater({ productos, onUpdateProducto }: PriceUpdaterProps)
       }
     }
 
+    // Aplicar redondeo hacia arriba al múltiplo de 100 más cercano
+    newPrice = Math.ceil(newPrice / 100) * 100
+
     // Validar que la descripción coincide
     if (producto.descripcion !== descripcion) {
       return {
@@ -249,6 +252,9 @@ export function PriceUpdater({ productos, onUpdateProducto }: PriceUpdaterProps)
           oldPrice: producto.precio
         }
       }
+
+      // Aplicar redondeo hacia arriba al múltiplo de 100 más cercano
+      newPrice = Math.ceil(newPrice / 100) * 100
 
       // Validar que la descripción coincide
       if (producto.descripcion !== descripcion) {
@@ -419,6 +425,7 @@ export function PriceUpdater({ productos, onUpdateProducto }: PriceUpdaterProps)
              <AlertDescription>
                <strong>Columnas obligatorias:</strong> ID, Descripción, Precio<br/>
                <strong>Importante:</strong> Usa la columna "Precio" (sin formato) para los nuevos valores, NO "Precio Formateado".<br/>
+               <strong>Redondeo automático:</strong> Los precios se redondearán automáticamente hacia arriba al múltiplo de 100 más cercano.<br/>
                Solo se actualizarán los precios de los productos que coincidan por ID y descripción.
              </AlertDescription>
            </Alert>

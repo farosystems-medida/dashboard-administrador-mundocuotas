@@ -39,11 +39,16 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
   const [productToDelete, setProductToDelete] = useState<Producto | null>(null)
   const [planesAsociados, setPlanesAsociados] = useState<any[]>([])
   const [isLoadingPlanes, setIsLoadingPlanes] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const [formData, setFormData] = useState({
     descripcion: "",
     descripcion_detallada: "",
     precio: "",
     imagen: "",
+    imagen_2: "",
+    imagen_3: "",
+    imagen_4: "",
+    imagen_5: "",
     destacado: false,
     fk_id_categoria: "none",
     fk_id_marca: "none",
@@ -55,6 +60,10 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
       descripcion_detallada: "",
       precio: "",
       imagen: "",
+      imagen_2: "",
+      imagen_3: "",
+      imagen_4: "",
+      imagen_5: "",
       destacado: false,
       fk_id_categoria: "none",
       fk_id_marca: "none",
@@ -70,6 +79,10 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
       descripcion_detallada: formData.descripcion_detallada || null,
       precio: Number.parseFloat(formData.precio),
       imagen: formData.imagen || null,
+      imagen_2: formData.imagen_2 || null,
+      imagen_3: formData.imagen_3 || null,
+      imagen_4: formData.imagen_4 || null,
+      imagen_5: formData.imagen_5 || null,
       destacado: formData.destacado,
       fk_id_categoria: formData.fk_id_categoria && formData.fk_id_categoria !== "none" ? Number.parseInt(formData.fk_id_categoria) : null,
       fk_id_marca: formData.fk_id_marca && formData.fk_id_marca !== "none" ? Number.parseInt(formData.fk_id_marca) : null,
@@ -81,6 +94,7 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
       if (editingProduct) {
         await onUpdateProducto(editingProduct.id, productoData)
       } else {
+        setIsCreating(true)
         await onCreateProducto(productoData)
       }
       setIsDialogOpen(false)
@@ -89,6 +103,8 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
       console.error('Error al guardar producto:', errorMessage)
       alert(`Error al guardar producto: ${errorMessage}`)
+    } finally {
+      setIsCreating(false)
     }
   }
 
@@ -99,6 +115,10 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
       descripcion_detallada: producto.descripcion_detallada || "",
       precio: producto.precio.toString(),
       imagen: producto.imagen || "",
+      imagen_2: producto.imagen_2 || "",
+      imagen_3: producto.imagen_3 || "",
+      imagen_4: producto.imagen_4 || "",
+      imagen_5: producto.imagen_5 || "",
       destacado: producto.destacado || false,
       fk_id_categoria: producto.fk_id_categoria?.toString() || "none",
       fk_id_marca: producto.fk_id_marca?.toString() || "none",
@@ -202,6 +222,7 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                             setIsDialogOpen(false)
                             resetForm()
                           }}
+                          disabled={isCreating}
                         >
                           ✕
                         </Button>
@@ -214,6 +235,7 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   required
+                  disabled={isCreating}
                 />
               </div>
                                       <div>
@@ -224,6 +246,7 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                             onChange={(e) => setFormData({ ...formData, descripcion_detallada: e.target.value })}
                             className="max-h-32 overflow-y-auto resize-none"
                             placeholder="Escribe la descripción detallada del producto..."
+                            disabled={isCreating}
                           />
                         </div>
               <div>
@@ -235,16 +258,62 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                   value={formData.precio}
                   onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
                   required
+                  disabled={isCreating}
                 />
               </div>
               <div>
-                <Label htmlFor="imagen">URL de Imagen (opcional)</Label>
+                <Label htmlFor="imagen">URL de Imagen Principal (opcional)</Label>
                 <Input
                   id="imagen"
                   type="url"
                   value={formData.imagen}
                   onChange={(e) => setFormData({ ...formData, imagen: e.target.value })}
                   placeholder="https://ejemplo.com/imagen.jpg"
+                  disabled={isCreating}
+                />
+              </div>
+              <div>
+                <Label htmlFor="imagen_2">URL de Imagen 2 (opcional)</Label>
+                <Input
+                  id="imagen_2"
+                  type="url"
+                  value={formData.imagen_2}
+                  onChange={(e) => setFormData({ ...formData, imagen_2: e.target.value })}
+                  placeholder="https://ejemplo.com/imagen2.jpg"
+                  disabled={isCreating}
+                />
+              </div>
+              <div>
+                <Label htmlFor="imagen_3">URL de Imagen 3 (opcional)</Label>
+                <Input
+                  id="imagen_3"
+                  type="url"
+                  value={formData.imagen_3}
+                  onChange={(e) => setFormData({ ...formData, imagen_3: e.target.value })}
+                  placeholder="https://ejemplo.com/imagen3.jpg"
+                  disabled={isCreating}
+                />
+              </div>
+              <div>
+                <Label htmlFor="imagen_4">URL de Imagen 4 (opcional)</Label>
+                <Input
+                  id="imagen_4"
+                  type="url"
+                  value={formData.imagen_4}
+                  onChange={(e) => setFormData({ ...formData, imagen_4: e.target.value })}
+                  placeholder="https://ejemplo.com/imagen4.jpg"
+                  disabled={isCreating}
+                />
+              </div>
+              <div>
+                <Label htmlFor="imagen_5">URL de Imagen 5 (opcional)</Label>
+                <Input
+                  id="imagen_5"
+                  type="url"
+                  value={formData.imagen_5}
+                  onChange={(e) => setFormData({ ...formData, imagen_5: e.target.value })}
+                  placeholder="https://ejemplo.com/imagen5.jpg"
+                  disabled={isCreating}
                 />
               </div>
               <div>
@@ -252,6 +321,7 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                 <Select
                   value={formData.fk_id_categoria}
                   onValueChange={(value) => setFormData({ ...formData, fk_id_categoria: value })}
+                  disabled={isCreating}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar categoría" />
@@ -271,6 +341,7 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                 <Select
                   value={formData.fk_id_marca}
                   onValueChange={(value) => setFormData({ ...formData, fk_id_marca: value })}
+                  disabled={isCreating}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar marca" />
@@ -290,11 +361,12 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                   id="destacado"
                   checked={formData.destacado}
                   onCheckedChange={(checked) => setFormData({ ...formData, destacado: checked })}
+                  disabled={isCreating}
                 />
                 <Label htmlFor="destacado">Destacado</Label>
               </div>
-              <Button type="submit" className="w-full">
-                {editingProduct ? "Actualizar" : "Crear"} Producto
+              <Button type="submit" className="w-full" disabled={isCreating}>
+                {isCreating ? "Creando..." : editingProduct ? "Actualizar" : "Crear"} Producto
               </Button>
             </form>
           </DialogContent>
@@ -309,6 +381,7 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                 <TableHead>ID</TableHead>
                 <TableHead>Descripción</TableHead>
                 <TableHead>Descripción Detallada</TableHead>
+                <TableHead>Imágenes</TableHead>
                 <TableHead>Categoría</TableHead>
                 <TableHead>Marca</TableHead>
                 <TableHead>Precio</TableHead>
@@ -402,6 +475,49 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                       <span className="text-gray-400 text-sm">Sin descripción detallada</span>
                     )}
                   </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {[producto.imagen, producto.imagen_2, producto.imagen_3, producto.imagen_4, producto.imagen_5]
+                        .filter(img => img)
+                        .map((img, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={img}
+                              alt={`${producto.descripcion} - Imagen ${index + 1}`}
+                              className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                              onError={(e) => {
+                                e.currentTarget.src = '/placeholder.jpg'
+                              }}
+                              onClick={() => {
+                                const modal = document.createElement('div')
+                                modal.className = 'fixed inset-0 backdrop-blur-sm bg-black/50 flex items-center justify-center z-50 p-4'
+                                modal.innerHTML = `
+                                  <div class="bg-white rounded-lg shadow-2xl max-w-4xl max-h-[90vh] overflow-hidden">
+                                    <div class="flex justify-between items-center p-4 border-b">
+                                      <h3 class="text-lg font-semibold">${producto.descripcion} - Imagen ${index + 1}</h3>
+                                      <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+                                    </div>
+                                    <div class="p-4">
+                                      <img src="${img}" alt="${producto.descripcion}" class="max-w-full max-h-[70vh] object-contain mx-auto">
+                                    </div>
+                                  </div>
+                                `
+                                document.body.appendChild(modal)
+                                modal.addEventListener('click', (e) => {
+                                  if (e.target === modal) modal.remove()
+                                })
+                              }}
+                            />
+                            <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              {index + 1}
+                            </span>
+                          </div>
+                        ))}
+                      {![producto.imagen, producto.imagen_2, producto.imagen_3, producto.imagen_4, producto.imagen_5].some(img => img) && (
+                        <span className="text-gray-400 text-xs">Sin imágenes</span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>{producto.categoria?.descripcion || '-'}</TableCell>
                   <TableCell>{producto.marca?.descripcion || '-'}</TableCell>
                   <TableCell>{formatPrice(producto.precio)}</TableCell>
@@ -443,14 +559,47 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
               <Card key={producto.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="aspect-square bg-gray-100 relative">
                   {producto.imagen ? (
-                    <img
-                      src={producto.imagen}
-                      alt={producto.descripcion}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = '/placeholder.jpg'
-                      }}
-                    />
+                    <div className="relative w-full h-full">
+                      <img
+                        src={producto.imagen}
+                        alt={producto.descripcion}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = '/placeholder.jpg'
+                        }}
+                      />
+                      {/* Indicador de múltiples imágenes */}
+                      {[producto.imagen_2, producto.imagen_3, producto.imagen_4, producto.imagen_5].some(img => img) && (
+                        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
+                          +{[producto.imagen_2, producto.imagen_3, producto.imagen_4, producto.imagen_5].filter(img => img).length}
+                        </div>
+                      )}
+                      {/* Galería de imágenes en hover */}
+                      {[producto.imagen_2, producto.imagen_3, producto.imagen_4, producto.imagen_5].some(img => img) && (
+                        <div className="absolute inset-0 bg-black/80 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                          <div className="text-white text-center">
+                            <div className="text-lg font-semibold mb-2">Galería de Imágenes</div>
+                            <div className="flex gap-2 justify-center">
+                              {[producto.imagen, producto.imagen_2, producto.imagen_3, producto.imagen_4, producto.imagen_5]
+                                .filter(img => img)
+                                .map((img, index) => (
+                                  <div key={index} className="w-12 h-12 border-2 border-white rounded overflow-hidden">
+                                    <img
+                                      src={img}
+                                      alt={`${producto.descripcion} - Imagen ${index + 1}`}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.currentTarget.src = '/placeholder.jpg'
+                                      }}
+                                    />
+                                  </div>
+                                ))}
+                            </div>
+                            <div className="text-sm mt-2">Haz clic para ver en grande</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gray-200">
                       <div className="text-gray-400 text-center">
