@@ -791,9 +791,30 @@ export function useSupabaseData() {
       // Lógica según los booleanos
       if (producto.aplica_todos_plan) {
         // Aplica a todos los planes que NO tengan categoría definida
-        console.log('Producto aplica a todos los planes (sin categoría):', producto.id)
+        // Y también a planes que SÍ tengan categoría definida si coincide con la categoría del producto
+        console.log('Producto aplica a todos los planes:', producto.id)
         console.log('Planes sin categoría disponibles:', planesSinCategoria)
-        planesParaAsociar = planesSinCategoria
+        
+        let planesParaAsociarTodos = [...planesSinCategoria]
+        
+        // Si el producto tiene categoría, también incluir planes con esa categoría específica
+        if (producto.fk_id_categoria) {
+          console.log('Filtrando planes con categoría del producto:', producto.fk_id_categoria)
+          console.log('Planes con categorías disponibles:', planesConCategoria.map(p => ({ id: p.id, categorias: planesConCategorias.get(p.id) })))
+          
+          const planesDeCategoria = planesConCategoria.filter(plan => {
+            const categoriasDelPlan = planesConCategorias.get(plan.id) || []
+            const incluyeCategoria = categoriasDelPlan.includes(producto.fk_id_categoria!)
+            console.log(`Plan ${plan.id} tiene categorías: [${categoriasDelPlan.join(', ')}], incluye ${producto.fk_id_categoria}: ${incluyeCategoria}`)
+            return incluyeCategoria
+          })
+          
+          planesParaAsociarTodos = [...planesParaAsociarTodos, ...planesDeCategoria]
+          console.log('Planes filtrados por categoría:', planesDeCategoria)
+        }
+        
+        planesParaAsociar = planesParaAsociarTodos
+        console.log('Total de planes para asociar (aplica_todos_plan):', planesParaAsociar.length)
       } else if (producto.aplica_solo_categoria && producto.fk_id_categoria) {
         // Aplica solo a planes de su categoría
         console.log('Filtrando planes para categoría del producto:', producto.fk_id_categoria)
