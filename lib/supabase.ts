@@ -32,6 +32,9 @@ export interface Producto {
   imagen_4?: string
   imagen_5?: string
   destacado?: boolean
+  aplica_todos_plan?: boolean
+  aplica_solo_categoria?: boolean
+  aplica_plan_especial?: boolean
   fk_id_categoria?: number
   fk_id_marca?: number
   categoria?: Categoria
@@ -47,9 +50,22 @@ export interface PlanFinanciacion {
   recargo_fijo: number
   monto_minimo: number
   monto_maximo?: number
+  anticipo_minimo?: number
+  anticipo_minimo_fijo?: number
   activo: boolean
   created_at: string
   updated_at: string
+  categorias?: PlanCategoria[]
+}
+
+// Tipo para la relación muchos a muchos entre planes y categorías
+export interface PlanCategoria {
+  id: number
+  fk_id_plan: number
+  fk_id_categoria: number
+  created_at: string
+  plan?: PlanFinanciacion
+  categoria?: Categoria
 }
 
 // Tipos para productos por plan

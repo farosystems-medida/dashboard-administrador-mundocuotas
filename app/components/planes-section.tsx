@@ -12,16 +12,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import type { PlanFinanciacion } from "@/lib/supabase"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type { PlanFinanciacion, Categoria } from "@/lib/supabase"
 
 interface PlanesSectionProps {
   planes: PlanFinanciacion[]
-  onCreatePlan: (plan: Omit<PlanFinanciacion, 'id' | 'created_at' | 'updated_at'>) => Promise<PlanFinanciacion | undefined>
-  onUpdatePlan: (id: number, updates: Partial<PlanFinanciacion>) => Promise<PlanFinanciacion | undefined>
+  categorias: Categoria[]
+  onCreatePlan: (plan: Omit<PlanFinanciacion, 'id' | 'created_at' | 'updated_at'>, categoriasIds?: number[]) => Promise<PlanFinanciacion | undefined>
+  onUpdatePlan: (id: number, updates: Partial<PlanFinanciacion>, categoriasIds?: number[]) => Promise<PlanFinanciacion | undefined>
   onDeletePlan: (id: number) => Promise<void>
+  getCategoriasDePlan: (planId: number) => Categoria[]
 }
 
-export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan }: PlanesSectionProps) {
+export function PlanesSection({ planes, categorias, onCreatePlan, onUpdatePlan, onDeletePlan, getCategoriasDePlan }: PlanesSectionProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [planToDelete, setPlanToDelete] = useState<PlanFinanciacion | null>(null)
@@ -33,6 +36,9 @@ export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan
     recargo_fijo: "",
     monto_minimo: "",
     monto_maximo: "",
+    anticipo_minimo: "",
+    anticipo_minimo_fijo: "",
+    categoriasIds: [] as number[],
     activo: true,
   })
 
@@ -44,6 +50,9 @@ export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan
       recargo_fijo: "",
       monto_minimo: "",
       monto_maximo: "",
+      anticipo_minimo: "",
+      anticipo_minimo_fijo: "",
+      categoriasIds: [],
       activo: true,
     })
     setEditingPlan(null)
@@ -59,14 +68,16 @@ export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan
       recargo_fijo: Number.parseFloat(formData.recargo_fijo),
       monto_minimo: Number.parseFloat(formData.monto_minimo),
       monto_maximo: formData.monto_maximo ? Number.parseFloat(formData.monto_maximo) : null,
+      anticipo_minimo: formData.anticipo_minimo ? Number.parseFloat(formData.anticipo_minimo) : null,
+      anticipo_minimo_fijo: formData.anticipo_minimo_fijo ? Number.parseFloat(formData.anticipo_minimo_fijo) : null,
       activo: formData.activo,
     }
 
     try {
       if (editingPlan) {
-        await onUpdatePlan(editingPlan.id, planData)
+        await onUpdatePlan(editingPlan.id, planData, formData.categoriasIds)
       } else {
-        await onCreatePlan(planData)
+        await onCreatePlan(planData, formData.categoriasIds)
       }
       setIsDialogOpen(false)
       resetForm()
@@ -77,6 +88,7 @@ export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan
 
   const handleEdit = (plan: PlanFinanciacion) => {
     setEditingPlan(plan)
+    const categoriasDelPlan = getCategoriasDePlan(plan.id)
     setFormData({
       nombre: plan.nombre,
       cuotas: plan.cuotas.toString(),
@@ -84,6 +96,9 @@ export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan
       recargo_fijo: plan.recargo_fijo.toString(),
       monto_minimo: plan.monto_minimo.toString(),
       monto_maximo: plan.monto_maximo?.toString() || "",
+      anticipo_minimo: plan.anticipo_minimo?.toString() || "",
+      anticipo_minimo_fijo: plan.anticipo_minimo_fijo?.toString() || "",
+      categoriasIds: categoriasDelPlan.map(cat => cat.id),
       activo: plan.activo,
     })
     setIsDialogOpen(true)
@@ -205,6 +220,71 @@ export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan
                   onChange={(e) => setFormData({ ...formData, monto_maximo: e.target.value })}
                 />
               </div>
+              <div>
+                <Label htmlFor="anticipo_minimo">Anticipo Mínimo (%) (opcional)</Label>
+                <Input
+                  id="anticipo_minimo"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={formData.anticipo_minimo}
+                  onChange={(e) => setFormData({ ...formData, anticipo_minimo: e.target.value })}
+                  placeholder="Ej: 20 para 20% del total"
+                />
+              </div>
+              <div>
+                <Label htmlFor="anticipo_minimo_fijo">Anticipo Mínimo Fijo ($) (opcional)</Label>
+                <Input
+                  id="anticipo_minimo_fijo"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.anticipo_minimo_fijo}
+                  onChange={(e) => setFormData({ ...formData, anticipo_minimo_fijo: e.target.value })}
+                  placeholder="Ej: 50000 para $50,000 fijos"
+                />
+              </div>
+              <div>
+                <Label>Categorías (opcional)</Label>
+                <div className="space-y-2 max-h-40 overflow-y-auto border rounded-md p-3">
+                  {categorias.length > 0 ? (
+                    categorias.map((categoria) => (
+                      <div key={categoria.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`categoria-${categoria.id}`}
+                          checked={formData.categoriasIds.includes(categoria.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                categoriasIds: [...formData.categoriasIds, categoria.id]
+                              })
+                            } else {
+                              setFormData({
+                                ...formData,
+                                categoriasIds: formData.categoriasIds.filter(id => id !== categoria.id)
+                              })
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <Label htmlFor={`categoria-${categoria.id}`} className="text-sm">
+                          {categoria.descripcion}
+                        </Label>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-gray-500 text-sm">No hay categorías disponibles</span>
+                  )}
+                </div>
+                {formData.categoriasIds.length > 0 && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    Seleccionadas: {formData.categoriasIds.length} categoría(s)
+                  </div>
+                )}
+              </div>
               <div className="flex items-center space-x-2">
                 <Switch
                   id="activo"
@@ -231,6 +311,9 @@ export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan
               <TableHead>Recargo Fijo</TableHead>
               <TableHead>Monto Mín</TableHead>
               <TableHead>Monto Máx</TableHead>
+              <TableHead>Anticipo %</TableHead>
+              <TableHead>Anticipo $</TableHead>
+              <TableHead>Categoría</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Acciones</TableHead>
             </TableRow>
@@ -245,6 +328,42 @@ export function PlanesSection({ planes, onCreatePlan, onUpdatePlan, onDeletePlan
                 <TableCell>${plan.recargo_fijo}</TableCell>
                 <TableCell>${plan.monto_minimo}</TableCell>
                 <TableCell>{plan.monto_maximo ? `$${plan.monto_maximo}` : '-'}</TableCell>
+                <TableCell>
+                  {plan.anticipo_minimo ? (
+                    <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                      {plan.anticipo_minimo}%
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {plan.anticipo_minimo_fijo ? (
+                    <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                      ${plan.anticipo_minimo_fijo.toLocaleString()}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {(() => {
+                    const categoriasDelPlan = getCategoriasDePlan(plan.id)
+                    if (categoriasDelPlan.length > 0) {
+                      return (
+                        <div className="flex flex-wrap gap-1">
+                          {categoriasDelPlan.map((categoria) => (
+                            <span key={categoria.id} className="px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+                              {categoria.descripcion}
+                            </span>
+                          ))}
+                        </div>
+                      )
+                    } else {
+                      return <span className="text-gray-400 text-xs">Sin categoría</span>
+                    }
+                  })()}
+                </TableCell>
                 <TableCell>
                   <span
                     className={`px-2 py-1 rounded-full text-xs ${

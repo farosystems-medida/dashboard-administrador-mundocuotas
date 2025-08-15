@@ -152,9 +152,80 @@ export function ProductosPlanSection({
     return planes.find((p) => p.id === id)?.nombre || "Plan no encontrado"
   }
 
-  const calcularCuotaMensual = (precio: number, cuotas: number, recargoPorcentual: number, recargoFijo: number) => {
+  const calcularCuotaMensual = (precio: number, cuotas: number, recargoPorcentual: number, recargoFijo: number, anticipoMinimo?: number, anticipoMinimoFijo?: number) => {
     const precioConRecargo = precio * (1 + recargoPorcentual / 100) + recargoFijo
+    
+    let montoAnticipo = 0
+    
+    // Calcular anticipo porcentual
+    if (anticipoMinimo && anticipoMinimo > 0) {
+      montoAnticipo += precioConRecargo * (anticipoMinimo / 100)
+    }
+    
+    // Calcular anticipo fijo
+    if (anticipoMinimoFijo && anticipoMinimoFijo > 0) {
+      montoAnticipo += anticipoMinimoFijo
+    }
+    
+    if (montoAnticipo > 0) {
+      const montoFinanciar = precioConRecargo - montoAnticipo
+      return Math.round(montoFinanciar / cuotas)
+    }
+    
     return Math.round(precioConRecargo / cuotas)
+  }
+
+  const calcularDetallesFinanciacion = (precio: number, cuotas: number, recargoPorcentual: number, recargoFijo: number, anticipoMinimo?: number, anticipoMinimoFijo?: number) => {
+    const precioConRecargo = precio * (1 + recargoPorcentual / 100) + recargoFijo
+    
+    let montoAnticipo = 0
+    let detallesAnticipo = {
+      porcentual: 0,
+      fijo: 0
+    }
+    
+    // Calcular anticipo porcentual
+    if (anticipoMinimo && anticipoMinimo > 0) {
+      const anticipoPorcentual = precioConRecargo * (anticipoMinimo / 100)
+      montoAnticipo += anticipoPorcentual
+      detallesAnticipo.porcentual = anticipoPorcentual
+    }
+    
+    // Calcular anticipo fijo
+    if (anticipoMinimoFijo && anticipoMinimoFijo > 0) {
+      montoAnticipo += anticipoMinimoFijo
+      detallesAnticipo.fijo = anticipoMinimoFijo
+    }
+    
+    if (montoAnticipo > 0) {
+      const montoFinanciar = precioConRecargo - montoAnticipo
+      const cuotaMensual = Math.round(montoFinanciar / cuotas)
+      const totalCuotas = cuotaMensual * cuotas
+      const totalFinal = montoAnticipo + totalCuotas
+      
+      return {
+        precioConRecargo,
+        montoAnticipo,
+        montoFinanciar,
+        cuotaMensual,
+        totalCuotas,
+        totalFinal,
+        detallesAnticipo
+      }
+    }
+    
+    const cuotaMensual = Math.round(precioConRecargo / cuotas)
+    const totalCuotas = cuotaMensual * cuotas
+    
+    return {
+      precioConRecargo,
+      montoAnticipo: 0,
+      montoFinanciar: precioConRecargo,
+      cuotaMensual,
+      totalCuotas,
+      totalFinal: totalCuotas,
+      detallesAnticipo
+    }
   }
 
   const formatPrice = (price: number) => {
@@ -276,6 +347,7 @@ export function ProductosPlanSection({
               <TableHead>Producto</TableHead>
               <TableHead>Plan</TableHead>
               <TableHead>Precio Original</TableHead>
+              <TableHead>Anticipo</TableHead>
               <TableHead>Cuota Mensual</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Destacado</TableHead>
@@ -286,7 +358,7 @@ export function ProductosPlanSection({
             {productosPorPlan.map((item) => {
               const producto = productos.find(p => p.id === item.fk_id_producto)
               const plan = planes.find(p => p.id === item.fk_id_plan)
-              const cuotaMensual = plan && producto ? calcularCuotaMensual(producto.precio, plan.cuotas, plan.recargo_porcentual, plan.recargo_fijo) : 0
+              const detalles = plan && producto ? calcularDetallesFinanciacion(producto.precio, plan.cuotas, plan.recargo_porcentual, plan.recargo_fijo, plan.anticipo_minimo, plan.anticipo_minimo_fijo) : null
               
               return (
                 <TableRow key={item.id}>
@@ -301,7 +373,47 @@ export function ProductosPlanSection({
                   </TableCell>
                   <TableCell>{getPlanNombre(item.fk_id_plan)}</TableCell>
                   <TableCell>{producto ? formatPrice(producto.precio) : '-'}</TableCell>
-                  <TableCell>{formatPrice(cuotaMensual)}</TableCell>
+                  <TableCell>
+                    {detalles && detalles.montoAnticipo > 0 ? (
+                      <div className="text-sm space-y-1">
+                        {detalles.detallesAnticipo.porcentual > 0 && (
+                          <div>
+                            <div className="font-medium text-blue-600">{plan?.anticipo_minimo}%</div>
+                            <div className="text-xs text-gray-500">
+                              {formatPrice(detalles.detallesAnticipo.porcentual)}
+                            </div>
+                          </div>
+                        )}
+                        {detalles.detallesAnticipo.fijo > 0 && (
+                          <div>
+                            <div className="font-medium text-green-600">Fijo</div>
+                            <div className="text-xs text-gray-500">
+                              {formatPrice(detalles.detallesAnticipo.fijo)}
+                            </div>
+                          </div>
+                        )}
+                        {detalles.detallesAnticipo.porcentual > 0 && detalles.detallesAnticipo.fijo > 0 && (
+                          <div className="text-xs font-medium text-gray-700 border-t pt-1">
+                            Total: {formatPrice(detalles.montoAnticipo)}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Sin anticipo</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {detalles ? (
+                      <div className="text-sm">
+                        <div className="font-medium">{formatPrice(detalles.cuotaMensual)}</div>
+                        <div className="text-xs text-gray-500">
+                          Total: {formatPrice(detalles.totalFinal)}
+                        </div>
+                      </div>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
                   <TableCell>
                     <span
                       className={`px-2 py-1 rounded-full text-xs ${

@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Plus, Edit, Trash2, Grid, List, MessageCircle } from "lucide-react"
+import { Plus, Edit, Trash2, Grid, List } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ProductSearch } from "./product-search"
 import { ExcelGenerator } from "./excel-generator"
 import { PriceUpdater } from "./price-updater"
-import { openWhatsApp } from "@/lib/whatsapp-utils"
+
 import type { Producto, Categoria, Marca } from "@/lib/supabase"
 
 interface ProductosSectionProps {
@@ -50,6 +50,9 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
     imagen_4: "",
     imagen_5: "",
     destacado: false,
+    aplica_todos_plan: false,
+    aplica_solo_categoria: false,
+    aplica_plan_especial: false,
     fk_id_categoria: "none",
     fk_id_marca: "none",
   })
@@ -65,6 +68,9 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
       imagen_4: "",
       imagen_5: "",
       destacado: false,
+      aplica_todos_plan: false,
+      aplica_solo_categoria: false,
+      aplica_plan_especial: false,
       fk_id_categoria: "none",
       fk_id_marca: "none",
     })
@@ -84,6 +90,9 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
       imagen_4: formData.imagen_4 || null,
       imagen_5: formData.imagen_5 || null,
       destacado: formData.destacado,
+      aplica_todos_plan: formData.aplica_todos_plan,
+      aplica_solo_categoria: formData.aplica_solo_categoria,
+      aplica_plan_especial: formData.aplica_plan_especial,
       fk_id_categoria: formData.fk_id_categoria && formData.fk_id_categoria !== "none" ? Number.parseInt(formData.fk_id_categoria) : null,
       fk_id_marca: formData.fk_id_marca && formData.fk_id_marca !== "none" ? Number.parseInt(formData.fk_id_marca) : null,
     }
@@ -120,6 +129,9 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
       imagen_4: producto.imagen_4 || "",
       imagen_5: producto.imagen_5 || "",
       destacado: producto.destacado || false,
+      aplica_todos_plan: producto.aplica_todos_plan || false,
+      aplica_solo_categoria: producto.aplica_solo_categoria || false,
+      aplica_plan_especial: producto.aplica_plan_especial || false,
       fk_id_categoria: producto.fk_id_categoria?.toString() || "none",
       fk_id_marca: producto.fk_id_marca?.toString() || "none",
     })
@@ -365,6 +377,35 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                 />
                 <Label htmlFor="destacado">Destacado</Label>
               </div>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="aplica_todos_plan"
+                    checked={formData.aplica_todos_plan}
+                    onCheckedChange={(checked) => setFormData({ ...formData, aplica_todos_plan: checked })}
+                    disabled={isCreating}
+                  />
+                  <Label htmlFor="aplica_todos_plan">Aplica a todos los planes</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="aplica_solo_categoria"
+                    checked={formData.aplica_solo_categoria}
+                    onCheckedChange={(checked) => setFormData({ ...formData, aplica_solo_categoria: checked })}
+                    disabled={isCreating}
+                  />
+                  <Label htmlFor="aplica_solo_categoria">Aplica solo a categoría</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="aplica_plan_especial"
+                    checked={formData.aplica_plan_especial}
+                    onCheckedChange={(checked) => setFormData({ ...formData, aplica_plan_especial: checked })}
+                    disabled={isCreating}
+                  />
+                  <Label htmlFor="aplica_plan_especial">Aplica plan especial</Label>
+                </div>
+              </div>
               <Button type="submit" className="w-full" disabled={isCreating}>
                 {isCreating ? "Creando..." : editingProduct ? "Actualizar" : "Crear"} Producto
               </Button>
@@ -377,17 +418,18 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
         {viewMode === 'table' ? (
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Descripción</TableHead>
-                <TableHead>Descripción Detallada</TableHead>
-                <TableHead>Imágenes</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>Marca</TableHead>
-                <TableHead>Precio</TableHead>
-                <TableHead>Destacado</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
+                          <TableRow>
+              <TableHead>ID</TableHead>
+              <TableHead>Descripción</TableHead>
+              <TableHead>Desc. Det.</TableHead>
+              <TableHead>Imágenes</TableHead>
+              <TableHead>Categoría</TableHead>
+              <TableHead>Marca</TableHead>
+              <TableHead>Precio</TableHead>
+              <TableHead>Destacado</TableHead>
+              <TableHead>Aplica Planes</TableHead>
+              <TableHead>Acciones</TableHead>
+            </TableRow>
             </TableHeader>
             <TableBody>
               {productos.map((producto) => (
@@ -531,17 +573,31 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                     </span>
                   </TableCell>
                   <TableCell>
+                    <div className="flex flex-col gap-1">
+                      {producto.aplica_todos_plan && (
+                        <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                          Todos
+                        </span>
+                      )}
+                      {producto.aplica_solo_categoria && (
+                        <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                          Categoría
+                        </span>
+                      )}
+                      {producto.aplica_plan_especial && (
+                        <span className="px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+                          Especial
+                        </span>
+                      )}
+                      {!producto.aplica_todos_plan && !producto.aplica_solo_categoria && !producto.aplica_plan_especial && (
+                        <span className="text-gray-400 text-xs">Ninguno</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => handleEdit(producto)}>
                         <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => openWhatsApp(producto.descripcion, configuracion)}
-                        className="text-green-600 hover:text-green-700"
-                      >
-                        <MessageCircle className="h-4 w-4" />
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => handleDeleteClick(producto)}>
                         <Trash2 className="h-4 w-4" />
@@ -642,6 +698,30 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                       )}
                     </div>
                     
+                    {/* Campos booleanos */}
+                    <div className="flex flex-wrap gap-1 text-xs">
+                      {producto.aplica_todos_plan && (
+                        <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-200">
+                          Todos
+                        </span>
+                      )}
+                      {producto.aplica_solo_categoria && (
+                        <span className="bg-green-50 text-green-700 px-2 py-1 rounded border border-green-200">
+                          Categoría
+                        </span>
+                      )}
+                      {producto.aplica_plan_especial && (
+                        <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded border border-purple-200">
+                          Especial
+                        </span>
+                      )}
+                      {!producto.aplica_todos_plan && !producto.aplica_solo_categoria && !producto.aplica_plan_especial && (
+                        <span className="bg-gray-50 text-gray-500 px-2 py-1 rounded border border-gray-200">
+                          Sin planes
+                        </span>
+                      )}
+                    </div>
+                    
                     {producto.descripcion_detallada && (
                       <div className="text-xs text-gray-600 line-clamp-2">
                         {producto.descripcion_detallada}
@@ -657,15 +737,6 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                       >
                         <Edit className="h-3 w-3 mr-1" />
                         Editar
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => openWhatsApp(producto.descripcion, configuracion)}
-                        className="flex-1 text-xs text-green-600 hover:text-green-700"
-                      >
-                        <MessageCircle className="h-3 w-3 mr-1" />
-                        WhatsApp
                       </Button>
                       <Button 
                         variant="outline" 

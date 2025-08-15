@@ -59,6 +59,7 @@ function Dashboard() {
     createProductoPlan,
     updateProductoPlan,
     deleteProductoPlan,
+    getCategoriasDePlan,
     updateConfiguracion,
     refreshData
   } = useSupabaseData()
@@ -195,9 +196,11 @@ function Dashboard() {
         return (
           <PlanesSection 
             planes={planes} 
+            categorias={categorias}
             onCreatePlan={createPlan}
             onUpdatePlan={updatePlan}
             onDeletePlan={deletePlan}
+            getCategoriasDePlan={getCategoriasDePlan}
           />
         )
       case "productos-plan":

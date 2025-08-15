@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { supabase, Producto, PlanFinanciacion, ProductoPlan, ProductoPlanDefault, Categoria, Marca, Zona, Configuracion, ConfiguracionZona } from '@/lib/supabase'
+import { supabase, Producto, PlanFinanciacion, ProductoPlan, ProductoPlanDefault, Categoria, Marca, Zona, Configuracion, ConfiguracionZona, PlanCategoria } from '@/lib/supabase'
 import { testSupabaseConnection } from '@/lib/supabase-debug'
 import { setupSupabaseAuth } from '@/lib/supabase-auth'
 import { useUser } from '@clerk/nextjs'
@@ -13,6 +13,7 @@ export function useSupabaseData() {
   const [productosPorPlan, setProductosPorPlan] = useState<ProductoPlan[]>([])
   const [productosPorPlanDefault, setProductosPorPlanDefault] = useState<ProductoPlanDefault[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [planesCategorias, setPlanesCategorias] = useState<PlanCategoria[]>([])
   const [marcas, setMarcas] = useState<Marca[]>([])
   const [zonas, setZonas] = useState<Zona[]>([])
   const [configuracion, setConfiguracion] = useState<Configuracion | null>(null)
@@ -53,6 +54,26 @@ export function useSupabaseData() {
     } catch (err) {
       setError('Error al cargar planes')
       console.error('Error loading planes:', err)
+    }
+  }
+
+  // Cargar relaciones planes-categorías
+  const loadPlanesCategorias = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('planes_categorias')
+        .select(`
+          *,
+          plan:fk_id_plan(*),
+          categoria:fk_id_categoria(*)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setPlanesCategorias(data || [])
+    } catch (err) {
+      setError('Error al cargar relaciones planes-categorías')
+      console.error('Error loading planes_categorias:', err)
     }
   }
 
@@ -183,7 +204,7 @@ export function useSupabaseData() {
       // Crear asociaciones por defecto para el nuevo producto
       if (data?.[0]) {
         try {
-          await createDefaultAssociationsForProduct(data[0].id)
+          await createDefaultAssociationsForProduct(data[0])
         } catch (defaultError) {
           console.warn('Error creating default associations:', defaultError)
           // No fallar la creación del producto si fallan las asociaciones por defecto
@@ -210,6 +231,24 @@ export function useSupabaseData() {
         .select()
 
       if (error) throw error
+
+      // Si se actualizaron los booleanos de aplicación de planes, actualizar las asociaciones por defecto
+      if (data?.[0] && (updates.aplica_todos_plan !== undefined || updates.aplica_solo_categoria !== undefined || updates.aplica_plan_especial !== undefined)) {
+        try {
+          // Eliminar asociaciones por defecto existentes
+          await supabase
+            .from('producto_planes_default')
+            .delete()
+            .eq('fk_id_producto', id)
+
+          // Crear nuevas asociaciones por defecto según los booleanos actualizados
+          await createDefaultAssociationsForProduct(data[0])
+        } catch (defaultError) {
+          console.warn('Error updating default associations:', defaultError)
+          // No fallar la actualización del producto si fallan las asociaciones por defecto
+        }
+      }
+
       await loadProductos()
       return data?.[0]
     } catch (err) {
@@ -291,7 +330,7 @@ export function useSupabaseData() {
   }
 
   // Crear plan
-  const createPlan = async (plan: Omit<PlanFinanciacion, 'id' | 'created_at' | 'updated_at'>) => {
+  const createPlan = async (plan: Omit<PlanFinanciacion, 'id' | 'created_at' | 'updated_at'>, categoriasIds?: number[]) => {
     try {
       const { data, error } = await supabase
         .from('planes_financiacion')
@@ -299,7 +338,25 @@ export function useSupabaseData() {
         .select()
 
       if (error) throw error
+      
+      // Si se especificaron categorías, crear las relaciones
+      if (data?.[0] && categoriasIds && categoriasIds.length > 0) {
+        const relaciones = categoriasIds.map(categoriaId => ({
+          fk_id_plan: data[0].id,
+          fk_id_categoria: categoriaId
+        }))
+        
+        const { error: relacionesError } = await supabase
+          .from('planes_categorias')
+          .insert(relaciones)
+        
+        if (relacionesError) {
+          console.error('Error creating plan-category relations:', relacionesError)
+        }
+      }
+      
       await loadPlanes()
+      await loadPlanesCategorias()
       return data?.[0]
     } catch (err) {
       setError('Error al crear plan')
@@ -309,7 +366,7 @@ export function useSupabaseData() {
   }
 
   // Actualizar plan
-  const updatePlan = async (id: number, updates: Partial<PlanFinanciacion>) => {
+  const updatePlan = async (id: number, updates: Partial<PlanFinanciacion>, categoriasIds?: number[]) => {
     try {
       const { data, error } = await supabase
         .from('planes_financiacion')
@@ -318,7 +375,34 @@ export function useSupabaseData() {
         .select()
 
       if (error) throw error
+      
+      // Si se especificaron categorías, actualizar las relaciones
+      if (categoriasIds !== undefined) {
+        // Eliminar relaciones existentes
+        await supabase
+          .from('planes_categorias')
+          .delete()
+          .eq('fk_id_plan', id)
+        
+        // Crear nuevas relaciones
+        if (categoriasIds.length > 0) {
+          const relaciones = categoriasIds.map(categoriaId => ({
+            fk_id_plan: id,
+            fk_id_categoria: categoriaId
+          }))
+          
+          const { error: relacionesError } = await supabase
+            .from('planes_categorias')
+            .insert(relaciones)
+          
+          if (relacionesError) {
+            console.error('Error updating plan-category relations:', relacionesError)
+          }
+        }
+      }
+      
       await loadPlanes()
+      await loadPlanesCategorias()
       return data?.[0]
     } catch (err) {
       setError('Error al actualizar plan')
@@ -337,11 +421,20 @@ export function useSupabaseData() {
 
       if (error) throw error
       await loadPlanes()
+      await loadPlanesCategorias()
     } catch (err) {
       setError('Error al eliminar plan')
       console.error('Error deleting plan:', err)
       throw err
     }
+  }
+
+  // Obtener categorías de un plan
+  const getCategoriasDePlan = (planId: number): Categoria[] => {
+    return planesCategorias
+      .filter(pc => pc.fk_id_plan === planId)
+      .map(pc => pc.categoria!)
+      .filter(Boolean)
   }
 
   // Crear categoría
@@ -650,28 +743,89 @@ export function useSupabaseData() {
     }
   }
 
-  // Crear asociaciones por defecto para un producto (todos los planes)
-  const createDefaultAssociationsForProduct = async (productoId: number) => {
+  // Crear asociaciones por defecto para un producto según los booleanos
+  const createDefaultAssociationsForProduct = async (producto: Producto) => {
     try {
+      console.log('Creando asociaciones por defecto para producto:', producto.id, 'con booleanos:', {
+        aplica_todos_plan: producto.aplica_todos_plan,
+        aplica_solo_categoria: producto.aplica_solo_categoria,
+        aplica_plan_especial: producto.aplica_plan_especial
+      })
+
+      // Si solo aplica plan especial, no crear asociaciones por defecto
+      if (producto.aplica_plan_especial && !producto.aplica_todos_plan && !producto.aplica_solo_categoria) {
+        console.log('Producto solo aplica plan especial, no se crean asociaciones por defecto')
+        return
+      }
+
       // Obtener todos los planes activos
-      const { data: planes, error: planesError } = await supabase
+      const { data: todosLosPlanes, error: planesError } = await supabase
         .from('planes_financiacion')
         .select('id')
         .eq('activo', true)
 
       if (planesError) throw planesError
 
-      // Crear asociaciones por defecto para todos los planes
-      const defaultAssociations = planes.map(plan => ({
-        fk_id_producto: productoId,
-        fk_id_plan: plan.id
-      }))
+      // Obtener las categorías de cada plan
+      const { data: planesCategorias, error: categoriasError } = await supabase
+        .from('planes_categorias')
+        .select('fk_id_plan, fk_id_categoria')
 
-      const { error } = await supabase
-        .from('producto_planes_default')
-        .insert(defaultAssociations)
+      if (categoriasError) throw categoriasError
 
-      if (error) throw error
+      // Crear un mapa de planes con sus categorías
+      const planesConCategorias = new Map()
+      planesCategorias?.forEach(pc => {
+        if (!planesConCategorias.has(pc.fk_id_plan)) {
+          planesConCategorias.set(pc.fk_id_plan, [])
+        }
+        planesConCategorias.get(pc.fk_id_plan).push(pc.fk_id_categoria)
+      })
+
+      // Separar planes con y sin categorías
+      const planesConCategoria = todosLosPlanes?.filter(plan => planesConCategorias.has(plan.id)) || []
+      const planesSinCategoria = todosLosPlanes?.filter(plan => !planesConCategorias.has(plan.id)) || []
+
+      let planesParaAsociar: any[] = []
+
+      // Lógica según los booleanos
+      if (producto.aplica_todos_plan) {
+        // Aplica a todos los planes que NO tengan categoría definida
+        console.log('Producto aplica a todos los planes (sin categoría):', producto.id)
+        console.log('Planes sin categoría disponibles:', planesSinCategoria)
+        planesParaAsociar = planesSinCategoria
+      } else if (producto.aplica_solo_categoria && producto.fk_id_categoria) {
+        // Aplica solo a planes de su categoría
+        console.log('Filtrando planes para categoría del producto:', producto.fk_id_categoria)
+        console.log('Planes con categorías disponibles:', planesConCategoria.map(p => ({ id: p.id, categorias: planesConCategorias.get(p.id) })))
+        
+        const planesDeCategoria = planesConCategoria.filter(plan => {
+          const categoriasDelPlan = planesConCategorias.get(plan.id) || []
+          const incluyeCategoria = categoriasDelPlan.includes(producto.fk_id_categoria!)
+          console.log(`Plan ${plan.id} tiene categorías: [${categoriasDelPlan.join(', ')}], incluye ${producto.fk_id_categoria}: ${incluyeCategoria}`)
+          return incluyeCategoria
+        })
+        planesParaAsociar = planesDeCategoria
+        console.log('Planes filtrados por categoría:', planesDeCategoria)
+      }
+
+      console.log('Planes seleccionados para asociar:', planesParaAsociar)
+
+      // Crear asociaciones por defecto
+      if (planesParaAsociar.length > 0) {
+        const defaultAssociations = planesParaAsociar.map(plan => ({
+          fk_id_producto: producto.id,
+          fk_id_plan: plan.id
+        }))
+
+        const { error } = await supabase
+          .from('producto_planes_default')
+          .insert(defaultAssociations)
+
+        if (error) throw error
+        console.log('Asociaciones por defecto creadas:', defaultAssociations.length)
+      }
+
       await loadProductosPorPlanDefault()
     } catch (err) {
       setError('Error al crear asociaciones por defecto para el producto')
@@ -764,6 +918,7 @@ export function useSupabaseData() {
             loadProductosPorPlan(),
             loadProductosPorPlanDefault(),
             loadCategorias(),
+            loadPlanesCategorias(),
             loadMarcas(),
             loadZonas(),
             loadConfiguracionZonas(),
@@ -810,6 +965,7 @@ export function useSupabaseData() {
     createProductoPlanDefault,
     deleteProductoPlanDefault,
     createDefaultAssociationsForProduct,
+    getCategoriasDePlan,
     configuracion,
     updateConfiguracion,
     refreshData: () => {
@@ -820,6 +976,7 @@ export function useSupabaseData() {
         loadProductosPorPlan(),
         loadProductosPorPlanDefault(),
         loadCategorias(),
+        loadPlanesCategorias(),
         loadMarcas(),
         loadZonas(),
         loadConfiguracionZonas(),
