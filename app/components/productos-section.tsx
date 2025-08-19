@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ProductSearch } from "./product-search"
 import { ExcelGenerator } from "./excel-generator"
 import { PriceUpdater } from "./price-updater"
+import { ImageUpload } from "./image-upload"
 
 import type { Producto, Categoria, Marca } from "@/lib/supabase"
 
@@ -56,6 +57,7 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
     fk_id_categoria: "none",
     fk_id_marca: "none",
   })
+  const [images, setImages] = useState<string[]>([])
 
   const resetForm = () => {
     setFormData({
@@ -74,21 +76,31 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
       fk_id_categoria: "none",
       fk_id_marca: "none",
     })
+    setImages([])
     setEditingProduct(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Combinar imágenes subidas con URLs manuales
+    const allImages = [
+      images[0] || formData.imagen || null,
+      images[1] || formData.imagen_2 || null,
+      images[2] || formData.imagen_3 || null,
+      images[3] || formData.imagen_4 || null,
+      images[4] || formData.imagen_5 || null,
+    ]
+
     const productoData = {
       descripcion: formData.descripcion,
       descripcion_detallada: formData.descripcion_detallada || null,
       precio: Number.parseFloat(formData.precio),
-      imagen: formData.imagen || null,
-      imagen_2: formData.imagen_2 || null,
-      imagen_3: formData.imagen_3 || null,
-      imagen_4: formData.imagen_4 || null,
-      imagen_5: formData.imagen_5 || null,
+      imagen: allImages[0],
+      imagen_2: allImages[1],
+      imagen_3: allImages[2],
+      imagen_4: allImages[3],
+      imagen_5: allImages[4],
       destacado: formData.destacado,
       aplica_todos_plan: formData.aplica_todos_plan,
       aplica_solo_categoria: formData.aplica_solo_categoria,
@@ -135,6 +147,15 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
       fk_id_categoria: producto.fk_id_categoria?.toString() || "none",
       fk_id_marca: producto.fk_id_marca?.toString() || "none",
     })
+    // Cargar imágenes existentes (solo las que están en el bucket de Supabase)
+    const existingImages = [
+      producto.imagen,
+      producto.imagen_2,
+      producto.imagen_3,
+      producto.imagen_4,
+      producto.imagen_5
+    ].filter(img => img && img.includes('supabase.co')) as string[]
+    setImages(existingImages)
     setIsDialogOpen(true)
   }
 
@@ -184,6 +205,17 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
     }).format(price)
   }
 
+  // Función helper para obtener todas las imágenes de un producto
+  const getAllProductImages = (producto: Producto): string[] => {
+    return [
+      producto.imagen,
+      producto.imagen_2,
+      producto.imagen_3,
+      producto.imagen_4,
+      producto.imagen_5
+    ].filter(img => img) as string[]
+  }
+
   return (
     <>
       <Card>
@@ -223,7 +255,7 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                         Nuevo Producto
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-md" showCloseButton={false}>
+                    <DialogContent className="max-w-4xl" showCloseButton={false}>
                       <DialogHeader>
                         <DialogTitle>{editingProduct ? "Editar Producto" : "Nuevo Producto"}</DialogTitle>
                         <Button
@@ -239,171 +271,194 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                           ✕
                         </Button>
                       </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="descripcion">Descripción</Label>
-                <Input
-                  id="descripcion"
-                  value={formData.descripcion}
-                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                  required
-                  disabled={isCreating}
-                />
-              </div>
-                                      <div>
-                          <Label htmlFor="descripcion_detallada">Descripción Detallada (opcional)</Label>
-                          <Textarea
-                            id="descripcion_detallada"
-                            value={formData.descripcion_detallada}
-                            onChange={(e) => setFormData({ ...formData, descripcion_detallada: e.target.value })}
-                            className="max-h-32 overflow-y-auto resize-none"
-                            placeholder="Escribe la descripción detallada del producto..."
-                            disabled={isCreating}
-                          />
-                        </div>
-              <div>
-                <Label htmlFor="precio">Precio</Label>
-                <Input
-                  id="precio"
-                  type="number"
-                  step="0.01"
-                  value={formData.precio}
-                  onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
-                  required
-                  disabled={isCreating}
-                />
-              </div>
-              <div>
-                <Label htmlFor="imagen">URL de Imagen Principal (opcional)</Label>
-                <Input
-                  id="imagen"
-                  type="url"
-                  value={formData.imagen}
-                  onChange={(e) => setFormData({ ...formData, imagen: e.target.value })}
-                  placeholder="https://ejemplo.com/imagen.jpg"
-                  disabled={isCreating}
-                />
-              </div>
-              <div>
-                <Label htmlFor="imagen_2">URL de Imagen 2 (opcional)</Label>
-                <Input
-                  id="imagen_2"
-                  type="url"
-                  value={formData.imagen_2}
-                  onChange={(e) => setFormData({ ...formData, imagen_2: e.target.value })}
-                  placeholder="https://ejemplo.com/imagen2.jpg"
-                  disabled={isCreating}
-                />
-              </div>
-              <div>
-                <Label htmlFor="imagen_3">URL de Imagen 3 (opcional)</Label>
-                <Input
-                  id="imagen_3"
-                  type="url"
-                  value={formData.imagen_3}
-                  onChange={(e) => setFormData({ ...formData, imagen_3: e.target.value })}
-                  placeholder="https://ejemplo.com/imagen3.jpg"
-                  disabled={isCreating}
-                />
-              </div>
-              <div>
-                <Label htmlFor="imagen_4">URL de Imagen 4 (opcional)</Label>
-                <Input
-                  id="imagen_4"
-                  type="url"
-                  value={formData.imagen_4}
-                  onChange={(e) => setFormData({ ...formData, imagen_4: e.target.value })}
-                  placeholder="https://ejemplo.com/imagen4.jpg"
-                  disabled={isCreating}
-                />
-              </div>
-              <div>
-                <Label htmlFor="imagen_5">URL de Imagen 5 (opcional)</Label>
-                <Input
-                  id="imagen_5"
-                  type="url"
-                  value={formData.imagen_5}
-                  onChange={(e) => setFormData({ ...formData, imagen_5: e.target.value })}
-                  placeholder="https://ejemplo.com/imagen5.jpg"
-                  disabled={isCreating}
-                />
-              </div>
-              <div>
-                <Label htmlFor="categoria">Categoría</Label>
-                <Select
-                  value={formData.fk_id_categoria}
-                  onValueChange={(value) => setFormData({ ...formData, fk_id_categoria: value })}
-                  disabled={isCreating}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar categoría" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin categoría</SelectItem>
-                    {categorias.map((categoria) => (
-                      <SelectItem key={categoria.id} value={categoria.id.toString()}>
-                        {categoria.descripcion}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="marca">Marca</Label>
-                <Select
-                  value={formData.fk_id_marca}
-                  onValueChange={(value) => setFormData({ ...formData, fk_id_marca: value })}
-                  disabled={isCreating}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar marca" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin marca</SelectItem>
-                    {marcas.map((marca) => (
-                      <SelectItem key={marca.id} value={marca.id.toString()}>
-                        {marca.descripcion}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="destacado"
-                  checked={formData.destacado}
-                  onCheckedChange={(checked) => setFormData({ ...formData, destacado: checked })}
-                  disabled={isCreating}
-                />
-                <Label htmlFor="destacado">Destacado</Label>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="aplica_todos_plan"
-                    checked={formData.aplica_todos_plan}
-                    onCheckedChange={(checked) => setFormData({ ...formData, aplica_todos_plan: checked })}
+                        <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Información básica */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="descripcion">Descripción</Label>
+                  <Input
+                    id="descripcion"
+                    value={formData.descripcion}
+                    onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                    required
                     disabled={isCreating}
                   />
-                  <Label htmlFor="aplica_todos_plan">Aplica a todos los planes</Label>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="aplica_solo_categoria"
-                    checked={formData.aplica_solo_categoria}
-                    onCheckedChange={(checked) => setFormData({ ...formData, aplica_solo_categoria: checked })}
+                <div>
+                  <Label htmlFor="precio">Precio</Label>
+                  <Input
+                    id="precio"
+                    type="number"
+                    step="0.01"
+                    value={formData.precio}
+                    onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
+                    required
                     disabled={isCreating}
                   />
-                  <Label htmlFor="aplica_solo_categoria">Aplica solo a categoría</Label>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="aplica_plan_especial"
-                    checked={formData.aplica_plan_especial}
-                    onCheckedChange={(checked) => setFormData({ ...formData, aplica_plan_especial: checked })}
+              </div>
+              
+              <div>
+                <Label htmlFor="descripcion_detallada">Descripción Detallada (opcional)</Label>
+                <Textarea
+                  id="descripcion_detallada"
+                  value={formData.descripcion_detallada}
+                  onChange={(e) => setFormData({ ...formData, descripcion_detallada: e.target.value })}
+                  className="max-h-32 overflow-y-auto resize-none"
+                  placeholder="Escribe la descripción detallada del producto..."
+                  disabled={isCreating}
+                />
+              </div>
+              <div>
+                <Label>Imágenes del Producto</Label>
+                <ImageUpload
+                  images={images}
+                  onImagesChange={setImages}
+                  maxImages={5}
+                  disabled={isCreating}
+                />
+              </div>
+              
+              {/* URLs de imágenes como opción adicional */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="imagen">URL de Imagen Principal (opcional)</Label>
+                  <Input
+                    id="imagen"
+                    type="url"
+                    value={formData.imagen || ""}
+                    onChange={(e) => setFormData({ ...formData, imagen: e.target.value })}
+                    placeholder="https://ejemplo.com/imagen.jpg"
                     disabled={isCreating}
                   />
-                  <Label htmlFor="aplica_plan_especial">Aplica plan especial</Label>
+                </div>
+                <div>
+                  <Label htmlFor="imagen_2">URL de Imagen 2 (opcional)</Label>
+                  <Input
+                    id="imagen_2"
+                    type="url"
+                    value={formData.imagen_2 || ""}
+                    onChange={(e) => setFormData({ ...formData, imagen_2: e.target.value })}
+                    placeholder="https://ejemplo.com/imagen2.jpg"
+                    disabled={isCreating}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="imagen_3">URL de Imagen 3 (opcional)</Label>
+                  <Input
+                    id="imagen_3"
+                    type="url"
+                    value={formData.imagen_3 || ""}
+                    onChange={(e) => setFormData({ ...formData, imagen_3: e.target.value })}
+                    placeholder="https://ejemplo.com/imagen3.jpg"
+                    disabled={isCreating}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="imagen_4">URL de Imagen 4 (opcional)</Label>
+                  <Input
+                    id="imagen_4"
+                    type="url"
+                    value={formData.imagen_4 || ""}
+                    onChange={(e) => setFormData({ ...formData, imagen_4: e.target.value })}
+                    placeholder="https://ejemplo.com/imagen4.jpg"
+                    disabled={isCreating}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="imagen_5">URL de Imagen 5 (opcional)</Label>
+                  <Input
+                    id="imagen_5"
+                    type="url"
+                    value={formData.imagen_5 || ""}
+                    onChange={(e) => setFormData({ ...formData, imagen_5: e.target.value })}
+                    placeholder="https://ejemplo.com/imagen5.jpg"
+                    disabled={isCreating}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="categoria">Categoría</Label>
+                  <Select
+                    value={formData.fk_id_categoria}
+                    onValueChange={(value) => setFormData({ ...formData, fk_id_categoria: value })}
+                    disabled={isCreating}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin categoría</SelectItem>
+                      {categorias.map((categoria) => (
+                        <SelectItem key={categoria.id} value={categoria.id.toString()}>
+                          {categoria.descripcion}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="marca">Marca</Label>
+                  <Select
+                    value={formData.fk_id_marca}
+                    onValueChange={(value) => setFormData({ ...formData, fk_id_marca: value })}
+                    disabled={isCreating}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar marca" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin marca</SelectItem>
+                      {marcas.map((marca) => (
+                        <SelectItem key={marca.id} value={marca.id.toString()}>
+                          {marca.descripcion}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="destacado"
+                      checked={formData.destacado}
+                      onCheckedChange={(checked) => setFormData({ ...formData, destacado: checked })}
+                      disabled={isCreating}
+                    />
+                    <Label htmlFor="destacado">Destacado</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="aplica_todos_plan"
+                      checked={formData.aplica_todos_plan}
+                      onCheckedChange={(checked) => setFormData({ ...formData, aplica_todos_plan: checked })}
+                      disabled={isCreating}
+                    />
+                    <Label htmlFor="aplica_todos_plan">Aplica a todos los planes</Label>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="aplica_solo_categoria"
+                      checked={formData.aplica_solo_categoria}
+                      onCheckedChange={(checked) => setFormData({ ...formData, aplica_solo_categoria: checked })}
+                      disabled={isCreating}
+                    />
+                    <Label htmlFor="aplica_solo_categoria">Aplica solo a categoría</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="aplica_plan_especial"
+                      checked={formData.aplica_plan_especial}
+                      onCheckedChange={(checked) => setFormData({ ...formData, aplica_plan_especial: checked })}
+                      disabled={isCreating}
+                    />
+                    <Label htmlFor="aplica_plan_especial">Aplica plan especial</Label>
+                  </div>
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={isCreating}>
@@ -519,9 +574,7 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {[producto.imagen, producto.imagen_2, producto.imagen_3, producto.imagen_4, producto.imagen_5]
-                        .filter(img => img)
-                        .map((img, index) => (
+                      {getAllProductImages(producto).map((img, index) => (
                           <div key={index} className="relative group">
                             <img
                               src={img}
@@ -553,9 +606,13 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                             <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               {index + 1}
                             </span>
+                            {/* Indicador de origen de la imagen */}
+                            <span className="absolute -bottom-1 -left-1 bg-gray-700 text-white text-xs px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                              {img.includes('supabase.co') ? '📤' : '🔗'}
+                            </span>
                           </div>
                         ))}
-                      {![producto.imagen, producto.imagen_2, producto.imagen_3, producto.imagen_4, producto.imagen_5].some(img => img) && (
+                      {getAllProductImages(producto).length === 0 && (
                         <span className="text-gray-400 text-xs">Sin imágenes</span>
                       )}
                     </div>
@@ -625,21 +682,23 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                         }}
                       />
                       {/* Indicador de múltiples imágenes */}
-                      {[producto.imagen_2, producto.imagen_3, producto.imagen_4, producto.imagen_5].some(img => img) && (
+                      {getAllProductImages(producto).length > 1 && (
                         <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
-                          +{[producto.imagen_2, producto.imagen_3, producto.imagen_4, producto.imagen_5].filter(img => img).length}
+                          +{getAllProductImages(producto).length - 1}
                         </div>
                       )}
+                      {/* Indicador de origen de la imagen principal */}
+                      <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-1 py-0.5 rounded">
+                        {producto.imagen.includes('supabase.co') ? '📤' : '🔗'}
+                      </div>
                       {/* Galería de imágenes en hover */}
-                      {[producto.imagen_2, producto.imagen_3, producto.imagen_4, producto.imagen_5].some(img => img) && (
+                      {getAllProductImages(producto).length > 1 && (
                         <div className="absolute inset-0 bg-black/80 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
                           <div className="text-white text-center">
                             <div className="text-lg font-semibold mb-2">Galería de Imágenes</div>
                             <div className="flex gap-2 justify-center">
-                              {[producto.imagen, producto.imagen_2, producto.imagen_3, producto.imagen_4, producto.imagen_5]
-                                .filter(img => img)
-                                .map((img, index) => (
-                                  <div key={index} className="w-12 h-12 border-2 border-white rounded overflow-hidden">
+                              {getAllProductImages(producto).map((img, index) => (
+                                  <div key={index} className="w-12 h-12 border-2 border-white rounded overflow-hidden relative">
                                     <img
                                       src={img}
                                       alt={`${producto.descripcion} - Imagen ${index + 1}`}
@@ -648,6 +707,10 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
                                         e.currentTarget.src = '/placeholder.jpg'
                                       }}
                                     />
+                                    {/* Indicador de origen en la galería */}
+                                    <div className="absolute top-0 right-0 bg-black/70 text-white text-xs px-1 py-0.5">
+                                      {img.includes('supabase.co') ? '📤' : '🔗'}
+                                    </div>
                                   </div>
                                 ))}
                             </div>
