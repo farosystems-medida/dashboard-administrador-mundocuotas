@@ -152,8 +152,10 @@ export function ProductosPlanSection({
     return planes.find((p) => p.id === id)?.nombre || "Plan no encontrado"
   }
 
-  const calcularCuotaMensual = (precio: number, cuotas: number, recargoPorcentual: number, recargoFijo: number, anticipoMinimo?: number, anticipoMinimoFijo?: number) => {
-    const precioConRecargo = precio * (1 + recargoPorcentual / 100) + recargoFijo
+  const calcularCuotaMensual = (precio: number, cuotas: number, recargoPorcentual?: number, recargoFijo?: number, anticipoMinimo?: number, anticipoMinimoFijo?: number) => {
+    const recargoPorcentualValue = recargoPorcentual || 0
+    const recargoFijoValue = recargoFijo || 0
+    const precioConRecargo = precio * (1 + recargoPorcentualValue / 100) + recargoFijoValue
     
     let montoAnticipo = 0
     
@@ -175,8 +177,10 @@ export function ProductosPlanSection({
     return Math.round(precioConRecargo / cuotas)
   }
 
-  const calcularDetallesFinanciacion = (precio: number, cuotas: number, recargoPorcentual: number, recargoFijo: number, anticipoMinimo?: number, anticipoMinimoFijo?: number) => {
-    const precioConRecargo = precio * (1 + recargoPorcentual / 100) + recargoFijo
+  const calcularDetallesFinanciacion = (precio: number, cuotas: number, recargoPorcentual?: number, recargoFijo?: number, anticipoMinimo?: number, anticipoMinimoFijo?: number) => {
+    const recargoPorcentualValue = recargoPorcentual || 0
+    const recargoFijoValue = recargoFijo || 0
+    const precioConRecargo = precio * (1 + recargoPorcentualValue / 100) + recargoFijoValue
     
     let montoAnticipo = 0
     let detallesAnticipo = {

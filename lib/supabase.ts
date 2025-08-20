@@ -46,8 +46,8 @@ export interface PlanFinanciacion {
   id: number
   nombre: string
   cuotas: number
-  recargo_porcentual: number
-  recargo_fijo: number
+  recargo_porcentual?: number
+  recargo_fijo?: number
   monto_minimo: number
   monto_maximo?: number
   anticipo_minimo?: number

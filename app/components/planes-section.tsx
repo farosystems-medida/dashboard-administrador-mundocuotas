@@ -64,8 +64,8 @@ export function PlanesSection({ planes, categorias, onCreatePlan, onUpdatePlan, 
     const planData = {
       nombre: formData.nombre,
       cuotas: Number.parseInt(formData.cuotas),
-      recargo_porcentual: Number.parseFloat(formData.recargo_porcentual),
-      recargo_fijo: Number.parseFloat(formData.recargo_fijo),
+      recargo_porcentual: formData.recargo_porcentual ? Number.parseFloat(formData.recargo_porcentual) : 0,
+      recargo_fijo: formData.recargo_fijo ? Number.parseFloat(formData.recargo_fijo) : 0,
       monto_minimo: Number.parseFloat(formData.monto_minimo),
       monto_maximo: formData.monto_maximo ? Number.parseFloat(formData.monto_maximo) : null,
       anticipo_minimo: formData.anticipo_minimo ? Number.parseFloat(formData.anticipo_minimo) : null,
@@ -92,8 +92,8 @@ export function PlanesSection({ planes, categorias, onCreatePlan, onUpdatePlan, 
     setFormData({
       nombre: plan.nombre,
       cuotas: plan.cuotas.toString(),
-      recargo_porcentual: plan.recargo_porcentual.toString(),
-      recargo_fijo: plan.recargo_fijo.toString(),
+      recargo_porcentual: plan.recargo_porcentual > 0 ? plan.recargo_porcentual.toString() : "",
+      recargo_fijo: plan.recargo_fijo > 0 ? plan.recargo_fijo.toString() : "",
       monto_minimo: plan.monto_minimo.toString(),
       monto_maximo: plan.monto_maximo?.toString() || "",
       anticipo_minimo: plan.anticipo_minimo?.toString() || "",
@@ -178,25 +178,25 @@ export function PlanesSection({ planes, categorias, onCreatePlan, onUpdatePlan, 
                 />
               </div>
               <div>
-                <Label htmlFor="recargo_porcentual">Recargo Porcentual (%)</Label>
+                <Label htmlFor="recargo_porcentual">Recargo Porcentual (%) (opcional)</Label>
                 <Input
                   id="recargo_porcentual"
                   type="number"
                   step="0.01"
                   value={formData.recargo_porcentual}
                   onChange={(e) => setFormData({ ...formData, recargo_porcentual: e.target.value })}
-                  required
+                  placeholder="Ej: 15 para 15% de recargo"
                 />
               </div>
               <div>
-                <Label htmlFor="recargo_fijo">Recargo Fijo ($)</Label>
+                <Label htmlFor="recargo_fijo">Recargo Fijo ($) (opcional)</Label>
                 <Input
                   id="recargo_fijo"
                   type="number"
                   step="0.01"
                   value={formData.recargo_fijo}
                   onChange={(e) => setFormData({ ...formData, recargo_fijo: e.target.value })}
-                  required
+                  placeholder="Ej: 5000 para $5,000 de recargo fijo"
                 />
               </div>
               <div>
@@ -324,8 +324,24 @@ export function PlanesSection({ planes, categorias, onCreatePlan, onUpdatePlan, 
                 <TableCell>{plan.id}</TableCell>
                 <TableCell className="font-medium">{plan.nombre}</TableCell>
                 <TableCell>{plan.cuotas}</TableCell>
-                <TableCell>{plan.recargo_porcentual}%</TableCell>
-                <TableCell>${plan.recargo_fijo}</TableCell>
+                <TableCell>
+                  {plan.recargo_porcentual ? (
+                    <span className="px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-800">
+                      {plan.recargo_porcentual}%
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {plan.recargo_fijo ? (
+                    <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
+                      ${plan.recargo_fijo.toLocaleString()}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
+                </TableCell>
                 <TableCell>${plan.monto_minimo}</TableCell>
                 <TableCell>{plan.monto_maximo ? `$${plan.monto_maximo}` : '-'}</TableCell>
                 <TableCell>
