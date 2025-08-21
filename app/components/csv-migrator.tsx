@@ -121,20 +121,20 @@ export function CsvMigrator({ categorias, marcas, productos, onCreateProducto, o
       
       // Validar categoría (por nombre o ID) - solo advertencia, no error
       if (row.categoria && !categorias.find(cat => cat.descripcion.toLowerCase() === row.categoria!.toLowerCase())) {
-        console.warn(`Fila ${rowNumber}: La categoría "${row.categoria}" no existe, se asignará una categoría por defecto`)
+        console.warn(`Fila ${rowNumber}: La categoría "${row.categoria}" no existe, se dejará vacía`)
       }
       
       if (row.fk_id_categoria && !categorias.find(cat => cat.id === row.fk_id_categoria)) {
-        console.warn(`Fila ${rowNumber}: La categoría con ID "${row.fk_id_categoria}" no existe, se asignará una categoría por defecto`)
+        console.warn(`Fila ${rowNumber}: La categoría con ID "${row.fk_id_categoria}" no existe, se dejará vacía`)
       }
       
       // Validar marca (por nombre o ID) - solo advertencia, no error
       if (row.marca && !marcas.find(marca => marca.descripcion.toLowerCase() === row.marca!.toLowerCase())) {
-        console.warn(`Fila ${rowNumber}: La marca "${row.marca}" no existe, se asignará una marca por defecto`)
+        console.warn(`Fila ${rowNumber}: La marca "${row.marca}" no existe, se dejará vacía`)
       }
       
       if (row.fk_id_marca && !marcas.find(marca => marca.id === row.fk_id_marca)) {
-        console.warn(`Fila ${rowNumber}: La marca con ID "${row.fk_id_marca}" no existe, se asignará una marca por defecto`)
+        console.warn(`Fila ${rowNumber}: La marca con ID "${row.fk_id_marca}" no existe, se dejará vacía`)
       }
     
       // Validación de booleanos eliminada - no se evalúa
@@ -378,63 +378,33 @@ export function CsvMigrator({ categorias, marcas, productos, onCreateProducto, o
       
       try {
         // Encontrar categoría y marca (por nombre o ID)
-        let categoriaId: number | null = null
+        let categoriaId: number | undefined = undefined
         if (row.fk_id_categoria && row.fk_id_categoria !== '' && row.fk_id_categoria !== null) {
           const parsedId = parseInt(row.fk_id_categoria.toString())
-          categoriaId = isNaN(parsedId) ? null : parsedId
+          categoriaId = isNaN(parsedId) ? undefined : parsedId
         } else if (row.categoria) {
           const categoria = categorias.find(cat => cat.descripcion.toLowerCase() === row.categoria!.toLowerCase())
-          categoriaId = categoria?.id || null
+          categoriaId = categoria?.id || undefined
         }
         
-        let marcaId: number | null = null
+        let marcaId: number | undefined = undefined
         if (row.fk_id_marca && row.fk_id_marca !== '' && row.fk_id_marca !== null) {
           const parsedId = parseInt(row.fk_id_marca.toString())
-          marcaId = isNaN(parsedId) ? null : parsedId
+          marcaId = isNaN(parsedId) ? undefined : parsedId
         } else if (row.marca) {
           const marca = marcas.find(marca => marca.descripcion.toLowerCase() === row.marca!.toLowerCase())
-          marcaId = marca?.id || null
+          marcaId = marca?.id || undefined
         }
 
-        // Si no se encontró categoría o marca, usar valores por defecto
-        if (categoriaId === null || categoriaId === undefined) {
-          // Buscar una categoría por defecto o usar la primera disponible
-          const categoriaDefault = categorias.find(cat => 
-            cat.descripcion.toLowerCase().includes('general') || 
-            cat.descripcion.toLowerCase().includes('otro') ||
-            cat.descripcion.toLowerCase().includes('default')
-          )
-          categoriaId = categoriaDefault?.id || categorias[0]?.id || 1
-          
-          // Verificar que el ID sea válido
-          if (!categorias.find(cat => cat.id === categoriaId)) {
-            categoriaId = categorias[0]?.id || 1
-          }
+        // Si no se encontró categoría o marca, dejar como undefined (no asignar por defecto)
+        // Solo validar que si se especificó un ID, sea válido
+        if (categoriaId !== undefined && !categorias.find(cat => cat.id === categoriaId)) {
+          throw new Error(`La categoría con ID "${categoriaId}" no existe en la base de datos. Verifica que la categoría exista o déjala vacía.`)
         }
         
-        if (marcaId === null || marcaId === undefined) {
-          // Buscar una marca por defecto o usar la primera disponible
-          const marcaDefault = marcas.find(marca => 
-            marca.descripcion.toLowerCase().includes('general') || 
-            marca.descripcion.toLowerCase().includes('otro') ||
-            marca.descripcion.toLowerCase().includes('default')
-          )
-          marcaId = marcaDefault?.id || marcas[0]?.id || 1
-          
-          // Verificar que el ID sea válido
-          if (!marcas.find(marca => marca.id === marcaId)) {
-            marcaId = marcas[0]?.id || 1
-          }
+        if (marcaId !== undefined && !marcas.find(marca => marca.id === marcaId)) {
+          throw new Error(`La marca con ID "${marcaId}" no existe en la base de datos. Verifica que la marca exista o déjala vacía.`)
         }
-        
-                 // Asegurar que siempre tengamos valores válidos
-         if (!marcaId || !marcas.find(marca => marca.id === marcaId)) {
-           throw new Error(`No se pudo asignar una marca válida. Marca ID: ${marcaId}, Marcas disponibles: ${marcas.map(m => `${m.id}:${m.descripcion}`).join(', ')}`)
-         }
-         
-         if (!categoriaId || !categorias.find(cat => cat.id === categoriaId)) {
-           throw new Error(`No se pudo asignar una categoría válida. Categoría ID: ${categoriaId}, Categorías disponibles: ${categorias.map(c => `${c.id}:${c.descripcion}`).join(', ')}`)
-         }
 
         const productoData = {
           descripcion: row.descripcion,
@@ -656,7 +626,7 @@ export function CsvMigrator({ categorias, marcas, productos, onCreateProducto, o
                   <p>• <strong>Columnas obligatorias:</strong> descripcion, precio (puede ser 0)</p>
                   <p>• <strong>Columnas opcionales:</strong> descripcion_detallada, categoria, marca, fk_id_categoria, fk_id_marca, destacado, aplica_todos_plan, aplica_solo_categoria, aplica_plan_especial, imagen, imagen_2, imagen_3, imagen_4, imagen_5</p>
                   <p>• <strong>Booleanos:</strong> true/false, 1/0, si/no, yes/no</p>
-                  <p>• <strong>Categorías y marcas:</strong> Si no existen, se asignan automáticamente</p>
+                  <p>• <strong>Categorías y marcas:</strong> Si no se especifican, se dejan vacías (NULL). Si se especifican pero no existen, se genera un error.</p>
                   <p>• <strong>Lógica de booleanos:</strong> Solo uno puede estar activo a la vez</p>
                   <p>• <strong>Precios:</strong> Usar formato numérico (ej: 150000.00, puede ser 0)</p>
                   <p>• <strong>Imágenes:</strong> URLs completas o dejar vacío</p>
