@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import type { Producto } from "@/lib/supabase"
 import * as XLSX from 'xlsx'
@@ -51,6 +52,8 @@ export function PriceUpdater({ productos, onUpdateProducto }: PriceUpdaterProps)
   const [previewData, setPreviewData] = useState<PreviewRow[]>([])
   const [validationError, setValidationError] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [totalItems, setTotalItems] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const formatPrice = (price: number) => {
@@ -108,32 +111,48 @@ export function PriceUpdater({ productos, onUpdateProducto }: PriceUpdaterProps)
         return
       }
 
-      // Generar vista previa
+      // Generar vista previa en lotes más pequeños para evitar problemas de memoria
       const previewRows: PreviewRow[] = []
+      const batchSize = 25 // Reducir a 25 filas por lote
+      setTotalItems(data.length)
+      setProgress(0)
       
-      for (const row of data) {
-        const previewRow = generatePreviewRow(row)
-        previewRows.push(previewRow)
+      for (let i = 0; i < data.length; i += batchSize) {
+        const batch = data.slice(i, i + batchSize)
+        
+        for (const row of batch) {
+          const previewRow = generatePreviewRow(row)
+          previewRows.push(previewRow)
+        }
+        
+        // Actualizar el estado en lotes para mostrar progreso
+        setPreviewData([...previewRows])
+        setProgress(Math.min(((i + batchSize) / data.length) * 100, 100))
+        
+        // Pausa más larga para permitir que el navegador respire
+        if (i + batchSize < data.length) {
+          await new Promise(resolve => setTimeout(resolve, 50))
+        }
       }
 
-             setPreviewData(previewRows)
-       setShowPreview(true)
+      setPreviewData(previewRows)
+      setShowPreview(true)
 
-       // Mostrar toast de éxito
-       const validCount = previewRows.filter(r => r.isValid).length
-       const errorCount = previewRows.filter(r => !r.isValid).length
-       
-       toast({
-         title: "📄 Archivo procesado",
-         description: `${validCount} productos válidos, ${errorCount} con errores. Revisa la vista previa.`,
-         variant: validCount > 0 ? "default" : "destructive",
-       })
+      // Mostrar toast de éxito
+      const validCount = previewRows.filter(r => r.isValid).length
+      const errorCount = previewRows.filter(r => !r.isValid).length
+      
+      toast({
+        title: "📄 Archivo procesado",
+        description: `${validCount} productos válidos, ${errorCount} con errores. Revisa la vista previa.`,
+        variant: validCount > 0 ? "default" : "destructive",
+      })
 
-     } catch (error) {
-       setValidationError(`Error al procesar el archivo: ${error instanceof Error ? error.message : 'Error desconocido'}`)
-     } finally {
-       setIsProcessing(false)
-     }
+    } catch (error) {
+      setValidationError(`Error al procesar el archivo: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   const readExcelFile = (file: File): Promise<ExcelRow[]> => {
@@ -304,38 +323,86 @@ export function PriceUpdater({ productos, onUpdateProducto }: PriceUpdaterProps)
         return
       }
 
-      // Procesar cada fila válida
-      const updateResults: UpdateResult[] = []
+      // Procesar en lotes más pequeños para evitar problemas de memoria
+      const batchSize = 5 // Reducir a 5 productos por lote
+      setTotalItems(validRows.length)
+      setProgress(0)
       
-      for (const row of validRows) {
-        const result = await onUpdateProducto(row.productoId, { precio: row.newPrice })
+      let successCount = 0
+      let errorCount = 0
+      const recentResults: UpdateResult[] = [] // Solo mantener los últimos resultados
+      
+      for (let i = 0; i < validRows.length; i += batchSize) {
+        const batch = validRows.slice(i, i + batchSize)
         
-        if (result) {
-          updateResults.push({
-            success: true,
-            message: `Precio actualizado: ${formatPrice(row.oldPrice)} → ${formatPrice(row.newPrice)}`,
-            productoId: row.productoId,
-            oldPrice: row.oldPrice,
-            newPrice: row.newPrice
-          })
-        } else {
-          updateResults.push({
-            success: false,
-            message: `Error al actualizar producto ${row.productoId}`,
-            productoId: row.productoId,
-            oldPrice: row.oldPrice,
-            newPrice: row.newPrice
-          })
+        // Procesar el lote actual
+        for (const row of batch) {
+          try {
+            const result = await onUpdateProducto(row.productoId, { precio: row.newPrice })
+            
+            const updateResult = {
+              success: !!result,
+              message: result 
+                ? `Precio actualizado: ${formatPrice(row.oldPrice)} → ${formatPrice(row.newPrice)}`
+                : `Error al actualizar producto ${row.productoId}`,
+              productoId: row.productoId,
+              oldPrice: row.oldPrice,
+              newPrice: row.newPrice
+            }
+            
+            if (updateResult.success) {
+              successCount++
+            } else {
+              errorCount++
+            }
+            
+            // Mantener solo los últimos 20 resultados para evitar problemas de memoria
+            recentResults.push(updateResult)
+            if (recentResults.length > 20) {
+              recentResults.shift() // Remover el más antiguo
+            }
+            
+          } catch (error) {
+            errorCount++
+            const errorResult = {
+              success: false,
+              message: `Error al actualizar producto ${row.productoId}: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+              productoId: row.productoId,
+              oldPrice: row.oldPrice,
+              newPrice: row.newPrice
+            }
+            
+            recentResults.push(errorResult)
+            if (recentResults.length > 20) {
+              recentResults.shift()
+            }
+          }
+        }
+        
+        // Actualizar solo los resultados recientes y el progreso
+        setResults([...recentResults])
+        setProgress(Math.min(((i + batchSize) / validRows.length) * 100, 100))
+        
+        // Pausa más larga entre lotes para dar tiempo al navegador
+        if (i + batchSize < validRows.length) {
+          await new Promise(resolve => setTimeout(resolve, 200))
         }
       }
-
-      setResults(updateResults)
+      
+      // Crear resumen final sin mantener todos los resultados en memoria
+      const finalResults: UpdateResult[] = [
+        {
+          success: true,
+          message: `✅ Actualización completada: ${successCount} exitosos, ${errorCount} errores`,
+          productoId: 0
+        },
+        ...recentResults.slice(-10) // Solo mostrar los últimos 10 resultados
+      ]
+      
+      setResults(finalResults)
       setShowPreview(false)
       
-      // Mostrar resumen
-      const successCount = updateResults.filter(r => r.success).length
-      const errorCount = updateResults.filter(r => !r.success).length
-      
+      // Mostrar resumen usando los contadores ya calculados
       if (errorCount === 0) {
         toast({
           title: "✅ Actualización exitosa",
@@ -363,6 +430,8 @@ export function PriceUpdater({ productos, onUpdateProducto }: PriceUpdaterProps)
     setPreviewData([])
     setValidationError(null)
     setShowPreview(false)
+    setProgress(0)
+    setTotalItems(0)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -462,15 +531,68 @@ export function PriceUpdater({ productos, onUpdateProducto }: PriceUpdaterProps)
             </Alert>
           )}
 
+          {/* Indicador de progreso */}
+          {(isProcessing || isUpdating) && totalItems > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>{isProcessing ? 'Procesando archivo...' : 'Actualizando precios...'}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <Progress value={progress} className="w-full" />
+              <div className="text-xs text-gray-500">
+                Procesando {Math.round((progress / 100) * totalItems)} de {totalItems} elementos
+              </div>
+            </div>
+          )}
+
                      {/* Vista Previa */}
            {showPreview && previewData.length > 0 && (
              <div className="flex-1 overflow-y-auto border rounded-lg">
                <div className="p-4">
                  <h3 className="font-medium mb-3">Vista previa de cambios:</h3>
+                 
+                 {/* Mostrar solo los primeros 10 y últimos 5 resultados para evitar problemas de memoria */}
                  <div className="space-y-2">
-                   {previewData.map((row, index) => (
+                   {previewData.slice(0, 10).map((row, index) => (
                      <div
                        key={index}
+                       className={`flex items-start space-x-2 p-3 rounded border ${
+                         row.isValid 
+                           ? 'bg-blue-50 border-blue-200' 
+                           : 'bg-red-50 border-red-200'
+                       }`}
+                     >
+                       {row.isValid ? (
+                         <CheckCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+                       ) : (
+                         <X className="h-4 w-4 text-red-600 mt-0.5" />
+                       )}
+                       <div className="flex-1 text-sm">
+                         <div className="font-medium">
+                           Producto ID: {row.productoId} - {row.descripcion}
+                         </div>
+                         {row.isValid ? (
+                           <div className="text-gray-600">
+                             Precio actual: {formatPrice(row.oldPrice)} → Nuevo precio: {formatPrice(row.newPrice)}
+                           </div>
+                         ) : (
+                           <div className="text-red-600">
+                             Error: {row.errorMessage}
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   ))}
+                   
+                   {previewData.length > 15 && (
+                     <div className="text-center text-gray-500 text-sm py-2">
+                       ... y {previewData.length - 15} productos más ...
+                     </div>
+                   )}
+                   
+                   {previewData.length > 15 && previewData.slice(-5).map((row, index) => (
+                     <div
+                       key={`last-${index}`}
                        className={`flex items-start space-x-2 p-3 rounded border ${
                          row.isValid 
                            ? 'bg-blue-50 border-blue-200' 
@@ -529,10 +651,10 @@ export function PriceUpdater({ productos, onUpdateProducto }: PriceUpdaterProps)
                        )}
                        <div className="flex-1 text-sm">
                          <div className="font-medium">
-                           Producto ID: {result.productoId}
+                           {result.productoId === 0 ? 'Resumen' : `Producto ID: ${result.productoId}`}
                          </div>
                          <div className="text-gray-600">{result.message}</div>
-                         {result.oldPrice && result.newPrice && (
+                         {result.oldPrice && result.newPrice && result.productoId !== 0 && (
                            <div className="text-xs text-gray-500">
                              {formatPrice(result.oldPrice)} → {formatPrice(result.newPrice)}
                            </div>

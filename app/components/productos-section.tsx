@@ -17,6 +17,7 @@ import { ProductSearch } from "./product-search"
 import { ExcelGenerator } from "./excel-generator"
 import { PriceUpdater } from "./price-updater"
 import { ImageUpload } from "./image-upload"
+import { CsvMigrator } from "./csv-migrator"
 
 import type { Producto, Categoria, Marca } from "@/lib/supabase"
 
@@ -243,6 +244,13 @@ export function ProductosSection({ productos, categorias, marcas, productosPorPl
           </div>
           <ExcelGenerator productos={productos} />
           <PriceUpdater productos={productos} onUpdateProducto={onUpdateProducto} />
+          <CsvMigrator 
+            categorias={categorias} 
+            marcas={marcas} 
+            productos={productos}
+            onCreateProducto={onCreateProducto} 
+            onUpdateProducto={onUpdateProducto} 
+          />
                                               <Dialog open={isDialogOpen} onOpenChange={(open) => {
                     if (open) {
                       setIsDialogOpen(true)
