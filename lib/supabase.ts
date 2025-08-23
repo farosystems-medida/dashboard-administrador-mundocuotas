@@ -32,6 +32,7 @@ export interface Producto {
   imagen_4?: string
   imagen_5?: string
   destacado?: boolean
+  activo?: boolean
   aplica_todos_plan?: boolean
   aplica_solo_categoria?: boolean
   aplica_plan_especial?: boolean
@@ -85,6 +86,7 @@ export interface ProductoPlanDefault {
   id: number
   fk_id_producto: number
   fk_id_plan: number
+  activo: boolean
   created_at: string
   producto?: Producto
   plan?: PlanFinanciacion

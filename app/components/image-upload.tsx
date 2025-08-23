@@ -10,9 +10,10 @@ interface ImageUploadProps {
   onImagesChange: (images: string[]) => void
   maxImages?: number
   disabled?: boolean
+  label?: string
 }
 
-export function ImageUpload({ images, onImagesChange, maxImages = 5, disabled = false }: ImageUploadProps) {
+export const ImageUpload = React.memo(({ images, onImagesChange, maxImages = 5, disabled = false, label }: ImageUploadProps) => {
   const [isDragOver, setIsDragOver] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
 
@@ -163,7 +164,9 @@ export function ImageUpload({ images, onImagesChange, maxImages = 5, disabled = 
       {/* Preview de imágenes */}
       {images.length > 0 && (
         <div className="space-y-3">
-          <h4 className="text-sm font-medium text-gray-700">Imágenes ({images.length}/{maxImages})</h4>
+          <h4 className="text-sm font-medium text-gray-700">
+            {label ? `${label} (${images.length}/${maxImages})` : `Imágenes (${images.length}/${maxImages})`}
+          </h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {images.map((image, index) => (
               <div key={index} className="relative group">
@@ -172,6 +175,7 @@ export function ImageUpload({ images, onImagesChange, maxImages = 5, disabled = 
                     src={image}
                     alt={`Imagen ${index + 1}`}
                     className="w-full h-full object-cover"
+                    loading="lazy"
                     onError={(e) => {
                       e.currentTarget.src = '/placeholder.jpg'
                     }}
@@ -200,9 +204,9 @@ export function ImageUpload({ images, onImagesChange, maxImages = 5, disabled = 
       {images.length === 0 && !isUploading && (
         <div className="text-center py-8 text-gray-500">
           <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No hay imágenes subidas</p>
+          <p className="text-sm">{label ? `No hay ${label.toLowerCase()} subida` : 'No hay imágenes subidas'}</p>
         </div>
       )}
     </div>
   )
-}
+})

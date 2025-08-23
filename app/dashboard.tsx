@@ -9,6 +9,7 @@ import { MarcasSection } from "./components/marcas-section"
 import { ZonasSection } from "./components/zonas-section"
 import { PlanesSection } from "./components/planes-section"
 import { ProductosPlanSection } from "./components/productos-plan-section"
+import { ProductosPlanesSection } from "./components/productos-planes-section"
 import { ConfiguracionZonas } from "./components/configuracion-zonas"
 import { useSupabaseData } from "./hooks/use-supabase-data"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -30,6 +31,7 @@ function Dashboard() {
     productos, 
     planes, 
     productosPorPlan, 
+    productosPorPlanDefault,
     categorias,
     marcas,
     zonas,
@@ -56,9 +58,13 @@ function Dashboard() {
     createPlan,
     updatePlan,
     deletePlan,
+    syncPlanAssociationsStatus,
     createProductoPlan,
     updateProductoPlan,
     deleteProductoPlan,
+    createProductoPlanDefault,
+    updateProductoPlanDefault,
+    deleteProductoPlanDefault,
     getCategoriasDePlan,
     updateConfiguracion,
     refreshData
@@ -125,7 +131,9 @@ function Dashboard() {
       case "planes":
         return "Planes de Financiación"
       case "productos-plan":
-        return "Productos por Plan"
+        return "Planes Especiales"
+      case "productos-planes":
+        return "Productos por Planes"
       case "configuracion":
         return "Configuración"
       default:
@@ -157,12 +165,9 @@ function Dashboard() {
             productos={productos} 
             categorias={categorias}
             marcas={marcas}
-            productosPorPlan={productosPorPlan}
-            configuracion={configuracion}
             onCreateProducto={createProducto}
             onUpdateProducto={updateProducto}
             onDeleteProducto={deleteProducto}
-            getPlanesAsociados={getPlanesAsociados}
           />
         )
       case "categorias":
@@ -201,6 +206,7 @@ function Dashboard() {
             onUpdatePlan={updatePlan}
             onDeletePlan={deletePlan}
             getCategoriasDePlan={getCategoriasDePlan}
+            syncPlanAssociationsStatus={syncPlanAssociationsStatus}
           />
         )
       case "productos-plan":
@@ -213,6 +219,17 @@ function Dashboard() {
             onUpdateProductoPlan={updateProductoPlan}
             onDeleteProductoPlan={deleteProductoPlan}
             onUpdateProducto={updateProducto}
+          />
+        )
+      case "productos-planes":
+        return (
+          <ProductosPlanesSection
+            productosPlanesDefault={productosPorPlanDefault}
+            productos={productos}
+            planes={planes}
+            onCreateProductoPlanDefault={createProductoPlanDefault}
+            onUpdateProductoPlanDefault={updateProductoPlanDefault}
+            onDeleteProductoPlanDefault={deleteProductoPlanDefault}
           />
         )
       case "configuracion":

@@ -243,7 +243,7 @@ export function ProductosPlanSection({
     <>
       <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Gestión de Productos por Plan</CardTitle>
+        <CardTitle>Gestión de Productos por Planes Especiales</CardTitle>
                                         <Dialog open={isDialogOpen} onOpenChange={(open) => {
                   if (open) {
                     setIsDialogOpen(true)

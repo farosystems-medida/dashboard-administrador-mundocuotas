@@ -113,7 +113,7 @@ export function useSupabaseData() {
       setProductosPorPlanDefault(data || [])
     } catch (err) {
       setError('Error al cargar productos por plan por defecto')
-      console.error('Error loading productos_plan_default:', err)
+      console.error('Error loading productos_planes_default:', err)
     }
   }
 
@@ -187,35 +187,16 @@ export function useSupabaseData() {
   // Crear producto
   const createProducto = async (producto: Omit<Producto, 'id' | 'created_at' | 'categoria' | 'marca'>) => {
     try {
-      console.log('Creating producto with data:', producto)
-      
       const { data, error } = await supabase
         .from('productos')
         .insert([producto])
         .select()
 
-      if (error) {
-        console.error('Supabase error:', error)
-        throw new Error(`Error de Supabase: ${error.message}`)
-      }
-      
-      console.log('Producto created successfully:', data)
-      
-      // Crear asociaciones por defecto para el nuevo producto
-      if (data?.[0]) {
-        try {
-          await createDefaultAssociationsForProduct(data[0])
-        } catch (defaultError) {
-          console.warn('Error creating default associations:', defaultError)
-          // No fallar la creación del producto si fallan las asociaciones por defecto
-        }
-      }
-      
+      if (error) throw error
       await loadProductos()
       return data?.[0]
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido al crear producto'
-      setError(`Error al crear producto: ${errorMessage}`)
+      setError('Error al crear producto')
       console.error('Error creating producto:', err)
       throw err
     }
@@ -231,84 +212,12 @@ export function useSupabaseData() {
         .select()
 
       if (error) throw error
-
-      // Si se actualizaron los booleanos de aplicación de planes, actualizar las asociaciones por defecto
-      if (data?.[0] && (updates.aplica_todos_plan !== undefined || updates.aplica_solo_categoria !== undefined || updates.aplica_plan_especial !== undefined)) {
-        try {
-          // Eliminar asociaciones por defecto existentes
-          await supabase
-            .from('producto_planes_default')
-            .delete()
-            .eq('fk_id_producto', id)
-
-          // Crear nuevas asociaciones por defecto según los booleanos actualizados
-          await createDefaultAssociationsForProduct(data[0])
-        } catch (defaultError) {
-          console.warn('Error updating default associations:', defaultError)
-          // No fallar la actualización del producto si fallan las asociaciones por defecto
-        }
-      }
-
       await loadProductos()
       return data?.[0]
     } catch (err) {
       setError('Error al actualizar producto')
       console.error('Error updating producto:', err)
       throw err
-    }
-  }
-
-  // Obtener planes asociados a un producto (combinando específicos y por defecto)
-  const getPlanesAsociados = async (productoId: number) => {
-    try {
-      console.log('Buscando planes asociados para producto ID:', productoId)
-      
-      // Obtener asociaciones específicas
-      const { data: specificData, error: specificError } = await supabase
-        .from('producto_planes')
-        .select(`
-          *,
-          plan:fk_id_plan(*)
-        `)
-        .eq('fk_id_producto', productoId)
-
-      if (specificError) {
-        console.error('Error en consulta Supabase:', specificError)
-        throw specificError
-      }
-
-      // Si hay asociaciones específicas, devolverlas
-      if (specificData && specificData.length > 0) {
-        console.log('Datos específicos obtenidos de Supabase:', specificData)
-        return specificData
-      }
-
-      // Si no hay asociaciones específicas, obtener las por defecto
-      const { data: defaultData, error: defaultError } = await supabase
-        .from('producto_planes_default')
-        .select(`
-          *,
-          plan:fk_id_plan(*)
-        `)
-        .eq('fk_id_producto', productoId)
-
-      if (defaultError) {
-        console.error('Error en consulta por defecto:', defaultError)
-        throw defaultError
-      }
-
-      // Convertir las asociaciones por defecto al formato esperado
-      const convertedData = defaultData?.map(item => ({
-        ...item,
-        activo: true,
-        destacado: false
-      })) || []
-
-      console.log('Datos por defecto convertidos:', convertedData)
-      return convertedData
-    } catch (err) {
-      console.error('Error getting planes asociados:', err)
-      return []
     }
   }
 
@@ -329,8 +238,27 @@ export function useSupabaseData() {
     }
   }
 
+  // Obtener planes asociados a un producto
+  const getPlanesAsociados = async (productoId: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('producto_planes')
+        .select(`
+          *,
+          plan:fk_id_plan(*)
+        `)
+        .eq('fk_id_producto', productoId)
+
+      if (error) throw error
+      return data || []
+    } catch (err) {
+      console.error('Error getting planes asociados:', err)
+      return []
+    }
+  }
+
   // Crear plan
-  const createPlan = async (plan: Omit<PlanFinanciacion, 'id' | 'created_at' | 'updated_at'>, categoriasIds?: number[]) => {
+  const createPlan = async (plan: Omit<PlanFinanciacion, 'id' | 'created_at' | 'updated_at' | 'categorias'>) => {
     try {
       const { data, error } = await supabase
         .from('planes_financiacion')
@@ -338,25 +266,7 @@ export function useSupabaseData() {
         .select()
 
       if (error) throw error
-      
-      // Si se especificaron categorías, crear las relaciones
-      if (data?.[0] && categoriasIds && categoriasIds.length > 0) {
-        const relaciones = categoriasIds.map(categoriaId => ({
-          fk_id_plan: data[0].id,
-          fk_id_categoria: categoriaId
-        }))
-        
-        const { error: relacionesError } = await supabase
-          .from('planes_categorias')
-          .insert(relaciones)
-        
-        if (relacionesError) {
-          console.error('Error creating plan-category relations:', relacionesError)
-        }
-      }
-      
       await loadPlanes()
-      await loadPlanesCategorias()
       return data?.[0]
     } catch (err) {
       setError('Error al crear plan')
@@ -366,43 +276,36 @@ export function useSupabaseData() {
   }
 
   // Actualizar plan
-  const updatePlan = async (id: number, updates: Partial<PlanFinanciacion>, categoriasIds?: number[]) => {
+  const updatePlan = async (id: number, updates: Partial<PlanFinanciacion>) => {
     try {
       const { data, error } = await supabase
         .from('planes_financiacion')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update(updates)
         .eq('id', id)
         .select()
 
       if (error) throw error
-      
-      // Si se especificaron categorías, actualizar las relaciones
-      if (categoriasIds !== undefined) {
-        // Eliminar relaciones existentes
-        await supabase
-          .from('planes_categorias')
-          .delete()
-          .eq('fk_id_plan', id)
+
+      // Si se está actualizando el estado 'activo' del plan, sincronizar con producto_planes_default
+      if (updates.activo !== undefined) {
+        console.log(`Sincronizando asociaciones del plan ${id} con estado activo: ${updates.activo}`)
         
-        // Crear nuevas relaciones
-        if (categoriasIds.length > 0) {
-          const relaciones = categoriasIds.map(categoriaId => ({
-            fk_id_plan: id,
-            fk_id_categoria: categoriaId
-          }))
-          
-          const { error: relacionesError } = await supabase
-            .from('planes_categorias')
-            .insert(relaciones)
-          
-          if (relacionesError) {
-            console.error('Error updating plan-category relations:', relacionesError)
-          }
+        const { error: syncError } = await supabase
+          .from('producto_planes_default')
+          .update({ activo: updates.activo })
+          .eq('fk_id_plan', id)
+
+        if (syncError) {
+          console.error('Error al sincronizar asociaciones:', syncError)
+          // No lanzar error para no fallar la actualización del plan
+        } else {
+          console.log('Asociaciones sincronizadas exitosamente')
+          // Recargar los datos de producto_planes_default
+          await loadProductosPorPlanDefault()
         }
       }
-      
+
       await loadPlanes()
-      await loadPlanesCategorias()
       return data?.[0]
     } catch (err) {
       setError('Error al actualizar plan')
@@ -421,7 +324,6 @@ export function useSupabaseData() {
 
       if (error) throw error
       await loadPlanes()
-      await loadPlanesCategorias()
     } catch (err) {
       setError('Error al eliminar plan')
       console.error('Error deleting plan:', err)
@@ -429,12 +331,28 @@ export function useSupabaseData() {
     }
   }
 
-  // Obtener categorías de un plan
-  const getCategoriasDePlan = (planId: number): Categoria[] => {
-    return planesCategorias
-      .filter(pc => pc.fk_id_plan === planId)
-      .map(pc => pc.categoria!)
-      .filter(Boolean)
+  // Sincronizar estado activo de todas las asociaciones de un plan
+  const syncPlanAssociationsStatus = async (planId: number, activo: boolean) => {
+    try {
+      console.log(`Sincronizando todas las asociaciones del plan ${planId} con estado: ${activo}`)
+      
+      const { error } = await supabase
+        .from('producto_planes_default')
+        .update({ activo })
+        .eq('fk_id_plan', planId)
+
+      if (error) throw error
+      
+      // Recargar los datos
+      await loadProductosPorPlanDefault()
+      
+      console.log('Sincronización completada exitosamente')
+      return true
+    } catch (err) {
+      setError('Error al sincronizar asociaciones del plan')
+      console.error('Error syncing plan associations:', err)
+      throw err
+    }
   }
 
   // Crear categoría
@@ -725,14 +643,32 @@ export function useSupabaseData() {
     }
   }
 
-  // Eliminar asociación por defecto
-  const deleteProductoPlanDefault = async (productoId: number, planId: number) => {
+  // Actualizar asociación por defecto
+  const updateProductoPlanDefault = async (id: number, productoPlanDefault: Partial<ProductoPlanDefault>) => {
+    try {
+      const { data, error } = await supabase
+        .from('producto_planes_default')
+        .update(productoPlanDefault)
+        .eq('id', id)
+        .select()
+
+      if (error) throw error
+      await loadProductosPorPlanDefault()
+      return data?.[0]
+    } catch (err) {
+      setError('Error al actualizar asociación por defecto')
+      console.error('Error updating producto_plan_default:', err)
+      throw err
+    }
+  }
+
+  // Eliminar asociación por defecto por ID
+  const deleteProductoPlanDefault = async (id: number) => {
     try {
       const { error } = await supabase
         .from('producto_planes_default')
         .delete()
-        .eq('fk_id_producto', productoId)
-        .eq('fk_id_plan', planId)
+        .eq('id', id)
 
       if (error) throw error
       await loadProductosPorPlanDefault()
@@ -855,6 +791,25 @@ export function useSupabaseData() {
     }
   }
 
+  // Obtener categorías de un plan
+  const getCategoriasDePlan = async (planId: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('planes_categorias')
+        .select(`
+          *,
+          categoria:fk_id_categoria(*)
+        `)
+        .eq('fk_id_plan', planId)
+
+      if (error) throw error
+      return data || []
+    } catch (err) {
+      console.error('Error getting categorias de plan:', err)
+      return []
+    }
+  }
+
   // Cargar configuración
   const loadConfiguracion = async () => {
     try {
@@ -968,6 +923,7 @@ export function useSupabaseData() {
     createPlan,
     updatePlan,
     deletePlan,
+    syncPlanAssociationsStatus,
     createCategoria,
     updateCategoria,
     deleteCategoria,
@@ -984,6 +940,7 @@ export function useSupabaseData() {
     updateProductoPlan,
     deleteProductoPlan,
     createProductoPlanDefault,
+    updateProductoPlanDefault,
     deleteProductoPlanDefault,
     createDefaultAssociationsForProduct,
     getCategoriasDePlan,

@@ -46,7 +46,12 @@ const menuItems = [
     url: "#planes",
   },
   {
-    title: "Productos por Plan",
+    title: "Productos por Planes",
+    icon: Link2,
+    url: "#productos-planes",
+  },
+  {
+    title: "Planes Especiales",
     icon: Link2,
     url: "#productos-plan",
   },

@@ -21,10 +21,11 @@ interface PlanesSectionProps {
   onCreatePlan: (plan: Omit<PlanFinanciacion, 'id' | 'created_at' | 'updated_at'>, categoriasIds?: number[]) => Promise<PlanFinanciacion | undefined>
   onUpdatePlan: (id: number, updates: Partial<PlanFinanciacion>, categoriasIds?: number[]) => Promise<PlanFinanciacion | undefined>
   onDeletePlan: (id: number) => Promise<void>
-  getCategoriasDePlan: (planId: number) => Categoria[]
+  getCategoriasDePlan: (planId: number) => Promise<Categoria[]>
+  syncPlanAssociationsStatus?: (planId: number, activo: boolean) => Promise<boolean>
 }
 
-export function PlanesSection({ planes, categorias, onCreatePlan, onUpdatePlan, onDeletePlan, getCategoriasDePlan }: PlanesSectionProps) {
+export function PlanesSection({ planes, categorias, onCreatePlan, onUpdatePlan, onDeletePlan, getCategoriasDePlan, syncPlanAssociationsStatus }: PlanesSectionProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [planToDelete, setPlanToDelete] = useState<PlanFinanciacion | null>(null)
@@ -86,9 +87,9 @@ export function PlanesSection({ planes, categorias, onCreatePlan, onUpdatePlan, 
     }
   }
 
-  const handleEdit = (plan: PlanFinanciacion) => {
+  const handleEdit = async (plan: PlanFinanciacion) => {
     setEditingPlan(plan)
-    const categoriasDelPlan = getCategoriasDePlan(plan.id)
+    const categoriasDelPlan = await getCategoriasDePlan(plan.id)
     setFormData({
       nombre: plan.nombre,
       cuotas: plan.cuotas.toString(),
@@ -98,7 +99,7 @@ export function PlanesSection({ planes, categorias, onCreatePlan, onUpdatePlan, 
       monto_maximo: plan.monto_maximo?.toString() || "",
       anticipo_minimo: plan.anticipo_minimo?.toString() || "",
       anticipo_minimo_fijo: plan.anticipo_minimo_fijo?.toString() || "",
-      categoriasIds: categoriasDelPlan.map(cat => cat.id),
+      categoriasIds: Array.isArray(categoriasDelPlan) ? categoriasDelPlan.map(cat => cat.id) : [],
       activo: plan.activo,
     })
     setIsDialogOpen(true)
