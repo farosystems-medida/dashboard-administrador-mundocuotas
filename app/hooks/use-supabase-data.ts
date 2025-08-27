@@ -205,13 +205,27 @@ export function useSupabaseData() {
   // Actualizar producto
   const updateProducto = async (id: number, updates: Partial<Producto>) => {
     try {
+      console.log('Actualizando producto:', { id, updates })
+      
+      // Convertir undefined a null para que Supabase limpie los campos
+      const updatesForSupabase = Object.fromEntries(
+        Object.entries(updates).map(([key, value]) => [
+          key, 
+          value === undefined ? null : value
+        ])
+      )
+      
+      console.log('Updates para Supabase:', updatesForSupabase)
+      
       const { data, error } = await supabase
         .from('productos')
-        .update(updates)
+        .update(updatesForSupabase)
         .eq('id', id)
         .select()
 
       if (error) throw error
+      
+      console.log('Producto actualizado exitosamente:', data?.[0])
       await loadProductos()
       return data?.[0]
     } catch (err) {

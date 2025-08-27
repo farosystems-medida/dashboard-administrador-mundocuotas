@@ -16,6 +16,8 @@ interface ImageUploadProps {
 export const ImageUpload = React.memo(({ images, onImagesChange, maxImages = 5, disabled = false, label }: ImageUploadProps) => {
   const [isDragOver, setIsDragOver] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  
+
 
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
@@ -106,9 +108,73 @@ export const ImageUpload = React.memo(({ images, onImagesChange, maxImages = 5, 
     setIsDragOver(false)
   }, [])
 
-  const removeImage = (index: number) => {
-    const newImages = images.filter((_, i) => i !== index)
-    onImagesChange(newImages)
+  // Función helper para extraer el path del archivo de una URL de Supabase
+  const extractFilePathFromUrl = (imageUrl: string): string => {
+    try {
+      // Las URLs de Supabase tienen formato: https://xxx.supabase.co/storage/v1/object/public/imagenes/productos/filename.jpg
+      const url = new URL(imageUrl)
+      const pathParts = url.pathname.split('/')
+      
+      // Buscar el índice de 'imagenes' en el path
+      const imagenesIndex = pathParts.findIndex(part => part === 'imagenes')
+      
+      if (imagenesIndex !== -1 && imagenesIndex + 2 < pathParts.length) {
+        // Tomar todo después de 'imagenes' (incluyendo 'productos/filename.jpg')
+        const filePath = pathParts.slice(imagenesIndex + 1).join('/')
+        return filePath
+      }
+      
+      // Fallback: extraer solo el nombre del archivo
+      const fileName = pathParts[pathParts.length - 1]
+      return `productos/${fileName}`
+    } catch (error) {
+      console.error('Error extrayendo path de URL:', error)
+      // Fallback: extraer solo el nombre del archivo
+      const urlParts = imageUrl.split('/')
+      const fileName = urlParts[urlParts.length - 1]
+      return `productos/${fileName}`
+    }
+  }
+
+  const removeImage = async (index: number) => {
+    try {
+      const imageUrl = images[index]
+      
+      if (!imageUrl) {
+        console.error('No hay URL de imagen en el índice:', index)
+        return
+      }
+      
+      // Verificar si la imagen es de Supabase o externa
+      const isSupabaseImage = imageUrl.includes('supabase.co')
+      
+      if (isSupabaseImage) {
+        // Solo intentar eliminar si es una imagen de Supabase
+        const filePath = extractFilePathFromUrl(imageUrl)
+        console.log('Eliminando imagen de Supabase:', filePath)
+        
+        const { error } = await supabase.storage
+          .from('imagenes')
+          .remove([filePath])
+        
+        if (error) {
+          console.error('Error eliminando imagen del storage:', error)
+        } else {
+          console.log('Imagen eliminada exitosamente del storage:', filePath)
+        }
+      } else {
+        console.log('Imagen externa eliminada de la interfaz (no se puede eliminar del servidor externo):', imageUrl)
+      }
+      
+      // Siempre eliminar de la lista local
+      const newImages = images.filter((_, i) => i !== index)
+      onImagesChange(newImages)
+    } catch (error) {
+      console.error('Error al eliminar imagen:', error)
+      // En caso de error, aún eliminamos de la interfaz
+      const newImages = images.filter((_, i) => i !== index)
+      onImagesChange(newImages)
+    }
   }
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -167,6 +233,7 @@ export const ImageUpload = React.memo(({ images, onImagesChange, maxImages = 5, 
           <h4 className="text-sm font-medium text-gray-700">
             {label ? `${label} (${images.length}/${maxImages})` : `Imágenes (${images.length}/${maxImages})`}
           </h4>
+
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {images.map((image, index) => (
               <div key={index} className="relative group">
@@ -181,16 +248,19 @@ export const ImageUpload = React.memo(({ images, onImagesChange, maxImages = 5, 
                     }}
                   />
                 </div>
-                {!disabled && (
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                    title="Eliminar imagen"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
+                                 {!disabled && (
+                   <button
+                     type="button"
+                     onClick={() => {
+                       console.log('Botón de eliminar clickeado para índice:', index)
+                       removeImage(index)
+                     }}
+                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-100 hover:bg-red-600 z-10"
+                     title="Eliminar imagen"
+                   >
+                     <X className="h-3 w-3" />
+                   </button>
+                 )}
                 <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 py-0.5 rounded">
                   {index + 1}
                 </div>
