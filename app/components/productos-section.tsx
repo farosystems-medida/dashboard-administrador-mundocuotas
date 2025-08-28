@@ -588,8 +588,8 @@ export const ProductosSection = React.memo(({
                         Nuevo Producto
                       </Button>
                     </DialogTrigger>
-                <DialogContent className="max-w-6xl max-h-[100vh] overflow-y-auto" showCloseButton={false}>
-                  <div className="max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" showCloseButton={false}>
+                  <div>
                       <DialogHeader>
                         <DialogTitle>{editingProduct ? "Editar Producto" : "Nuevo Producto"}</DialogTitle>
                         <Button
@@ -769,17 +769,6 @@ export const ProductosSection = React.memo(({
                   suppressContentEditableWarning={true}
                 />
                 
-                {formData.descripcion_detallada && (
-                  <div className="text-xs text-gray-500 mt-2">
-                    Vista previa guardada: 
-                    <div 
-                      className="mt-1 p-2 bg-gray-50 rounded text-sm"
-                      dangerouslySetInnerHTML={{
-                        __html: formData.descripcion_detallada
-                      }}
-                    />
-                  </div>
-                )}
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
