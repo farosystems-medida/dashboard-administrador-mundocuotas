@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { Plus, Edit, Trash2, Grid, List, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, X, Bold, Italic, Underline, Type, Palette } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -47,6 +47,7 @@ export const ProductosSection = React.memo(({
   const [filterMarca, setFilterMarca] = useState("all")
   const [filterEstado, setFilterEstado] = useState("all")
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const itemsPerPage = 15
   const [formData, setFormData] = useState({
     descripcion: "",
@@ -124,6 +125,15 @@ export const ProductosSection = React.memo(({
   useEffect(() => {
     setCurrentPage(1)
   }, [viewMode, filteredProductos.length, searchTerm, filterCategoria, filterMarca, filterEstado])
+
+  // Limpiar timer al desmontar
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
 
   // Componente de paginación
   const Pagination = () => {
@@ -253,6 +263,17 @@ export const ProductosSection = React.memo(({
     }).format(price)
   }, [])
 
+  // Función debounced para actualizar la descripción detallada
+  const updateDescripcionDetallada = useCallback((content: string) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    
+    debounceTimerRef.current = setTimeout(() => {
+      setFormData(prev => ({ ...prev, descripcion_detallada: content }))
+    }, 100)
+  }, [])
+
   const resetForm = () => {
     setFormData({
       descripcion: "",
@@ -298,13 +319,13 @@ export const ProductosSection = React.memo(({
     setCurrentImageIndex(0)
     setTimeout(() => {
       setIsDialogOpen(true)
-      // Inicializar el contenido del editor enriquecido
+      // Inicializar el contenido del editor enriquecido después de que se renderice
       setTimeout(() => {
         const editor = document.getElementById('rich-editor')
-        if (editor && producto.descripcion_detallada) {
-          editor.innerHTML = producto.descripcion_detallada
+        if (editor) {
+          editor.innerHTML = producto.descripcion_detallada || ''
         }
-      }, 100)
+      }, 150)
     }, 0)
   }
 
@@ -583,6 +604,13 @@ export const ProductosSection = React.memo(({
                   <Button onClick={() => {
                     resetForm()
                     setIsDialogOpen(true)
+                    // Limpiar el editor para nuevo producto
+                    setTimeout(() => {
+                      const editor = document.getElementById('rich-editor')
+                      if (editor) {
+                        editor.innerHTML = ''
+                      }
+                    }, 150)
                   }}>
                         <Plus className="h-4 w-4 mr-2" />
                         Nuevo Producto
@@ -756,15 +784,12 @@ export const ProductosSection = React.memo(({
                   }}
                   onInput={(e) => {
                     const content = e.currentTarget.innerHTML
-                    setFormData({ ...formData, descripcion_detallada: content })
+                    updateDescripcionDetallada(content)
                   }}
                   onPaste={(e) => {
                     e.preventDefault()
                     const text = e.clipboardData?.getData('text/plain') || ''
                     document.execCommand('insertText', false, text)
-                  }}
-                  dangerouslySetInnerHTML={{
-                    __html: formData.descripcion_detallada || ''
                   }}
                   suppressContentEditableWarning={true}
                 />
