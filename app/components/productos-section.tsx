@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useMemo } from "react"
-import { Plus, Edit, Trash2, Grid, List, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, X } from "lucide-react"
+import { Plus, Edit, Trash2, Grid, List, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, X, Bold, Italic, Underline, Type, Palette } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -46,6 +46,7 @@ export const ProductosSection = React.memo(({
   const [filterCategoria, setFilterCategoria] = useState("all")
   const [filterMarca, setFilterMarca] = useState("all")
   const [filterEstado, setFilterEstado] = useState("all")
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const itemsPerPage = 15
   const [formData, setFormData] = useState({
     descripcion: "",
@@ -267,6 +268,7 @@ export const ProductosSection = React.memo(({
       aplica_plan_especial: false
     })
     setEditingProduct(null)
+    setCurrentImageIndex(0)
   }
 
   const handleEdit = (producto: Producto) => {
@@ -293,7 +295,17 @@ export const ProductosSection = React.memo(({
       aplica_solo_categoria: producto.aplica_solo_categoria || false,
       aplica_plan_especial: producto.aplica_plan_especial || false
     })
-    setTimeout(() => setIsDialogOpen(true), 0)
+    setCurrentImageIndex(0)
+    setTimeout(() => {
+      setIsDialogOpen(true)
+      // Inicializar el contenido del editor enriquecido
+      setTimeout(() => {
+        const editor = document.getElementById('rich-editor')
+        if (editor && producto.descripcion_detallada) {
+          editor.innerHTML = producto.descripcion_detallada
+        }
+      }, 100)
+    }, 0)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -619,15 +631,155 @@ export const ProductosSection = React.memo(({
                 </div>
               </div>
               
-              <div>
+              <div className="space-y-3">
                 <Label htmlFor="descripcion_detallada">Descripción Detallada (opcional)</Label>
-                <Textarea
-                  id="descripcion_detallada"
-                  value={formData.descripcion_detallada}
-                  onChange={(e) => setFormData({ ...formData, descripcion_detallada: e.target.value })}
-                  disabled={isCreating}
-                          rows={3}
+                
+                {/* Barra de herramientas de formato */}
+                <div className="flex flex-wrap gap-2 p-2 border rounded-t-lg bg-gray-50">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => {
+                      document.execCommand('bold', false, undefined)
+                    }}
+                    disabled={isCreating}
+                    title="Negrita"
+                  >
+                    <Bold className="h-4 w-4" />
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => {
+                      document.execCommand('italic', false, undefined)
+                    }}
+                    disabled={isCreating}
+                    title="Cursiva"
+                  >
+                    <Italic className="h-4 w-4" />
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => {
+                      document.execCommand('underline', false, undefined)
+                    }}
+                    disabled={isCreating}
+                    title="Subrayado"
+                  >
+                    <Underline className="h-4 w-4" />
+                  </Button>
+                  
+                  <div className="border-l mx-2" />
+                  
+                  <select
+                    className="text-xs border rounded px-2 py-1"
+                    onChange={(e) => {
+                      document.execCommand('fontSize', false, e.target.value)
+                    }}
+                    disabled={isCreating}
+                    title="Tamaño de fuente"
+                    defaultValue="3"
+                  >
+                    <option value="1">Muy pequeño</option>
+                    <option value="2">Pequeño</option>
+                    <option value="3">Normal</option>
+                    <option value="4">Grande</option>
+                    <option value="5">Muy grande</option>
+                    <option value="6">Extra grande</option>
+                  </select>
+                  
+                  <select
+                    className="text-xs border rounded px-2 py-1"
+                    onChange={(e) => {
+                      document.execCommand('fontName', false, e.target.value)
+                    }}
+                    disabled={isCreating}
+                    title="Tipografía"
+                    defaultValue="Arial"
+                  >
+                    <option value="Arial">Arial</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Tahoma">Tahoma</option>
+                  </select>
+                  
+                  <input
+                    type="color"
+                    className="w-8 h-8 border rounded cursor-pointer"
+                    onChange={(e) => {
+                      document.execCommand('foreColor', false, e.target.value)
+                    }}
+                    disabled={isCreating}
+                    title="Color de texto"
+                  />
+                  
+                  <div className="border-l mx-2" />
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs px-2 py-1"
+                    onClick={() => {
+                      const editor = document.getElementById('rich-editor')
+                      if (editor) {
+                        editor.innerHTML = ''
+                        setFormData({ ...formData, descripcion_detallada: '' })
+                      }
+                    }}
+                    disabled={isCreating}
+                    title="Limpiar formato"
+                  >
+                    Limpiar
+                  </Button>
+                </div>
+                
+                {/* Editor de texto enriquecido */}
+                <div
+                  id="rich-editor"
+                  contentEditable
+                  className="min-h-[120px] p-3 border border-t-0 rounded-b-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    borderTopLeftRadius: 0,
+                    borderTopRightRadius: 0
+                  }}
+                  onInput={(e) => {
+                    const content = e.currentTarget.innerHTML
+                    setFormData({ ...formData, descripcion_detallada: content })
+                  }}
+                  onPaste={(e) => {
+                    e.preventDefault()
+                    const text = e.clipboardData?.getData('text/plain') || ''
+                    document.execCommand('insertText', false, text)
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: formData.descripcion_detallada || ''
+                  }}
+                  suppressContentEditableWarning={true}
                 />
+                
+                {formData.descripcion_detallada && (
+                  <div className="text-xs text-gray-500 mt-2">
+                    Vista previa guardada: 
+                    <div 
+                      className="mt-1 p-2 bg-gray-50 rounded text-sm"
+                      dangerouslySetInnerHTML={{
+                        __html: formData.descripcion_detallada
+                      }}
+                    />
+                  </div>
+                )}
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -682,6 +834,7 @@ export const ProductosSection = React.memo(({
                               onClick={() => {
                                 console.log('Eliminando todas las imágenes del formulario')
                                 setFormData({ ...formData, imagenes: [] })
+                                setCurrentImageIndex(0)
                               }}
                               disabled={isCreating}
                             >
@@ -689,13 +842,255 @@ export const ProductosSection = React.memo(({
                             </Button>
                           )}
                         </div>
-                        <ImageUpload
-                          images={formData.imagenes}
-                          onImagesChange={(newImages) => setFormData({ ...formData, imagenes: newImages })}
-                          maxImages={5}
-                          disabled={isCreating}
-                          label="Imágenes"
-                        />
+                        
+                        {/* Vista previa de imágenes con navegación */}
+                        {formData.imagenes.length > 0 && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between text-sm text-gray-600">
+                              <span>Vista previa de imágenes</span>
+                              <span>{currentImageIndex + 1} de {formData.imagenes.length}</span>
+                            </div>
+                            
+                            <div className="relative">
+                              <div className="aspect-square w-full max-w-xs mx-auto bg-gray-100 rounded-lg overflow-hidden border">
+                                <img
+                                  src={formData.imagenes[currentImageIndex]}
+                                  alt={`Imagen ${currentImageIndex + 1}`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.src = '/placeholder.jpg'
+                                  }}
+                                />
+                              </div>
+                              
+                              {/* Botón eliminar imagen actual */}
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                className="absolute top-2 right-2 h-8 w-8 p-0"
+                                onClick={async () => {
+                                  const imageUrl = formData.imagenes[currentImageIndex]
+                                  
+                                  // Eliminar imagen del storage si es de Supabase
+                                  if (imageUrl.includes('supabase.co')) {
+                                    try {
+                                      const filePath = extractFilePathFromUrl(imageUrl)
+                                      console.log('Eliminando imagen de Supabase:', filePath)
+                                      
+                                      const { error } = await supabase.storage
+                                        .from('imagenes')
+                                        .remove([filePath])
+                                      
+                                      if (error) {
+                                        console.error('Error eliminando imagen del storage:', error)
+                                      }
+                                    } catch (error) {
+                                      console.error('Error al eliminar imagen:', error)
+                                    }
+                                  }
+                                  
+                                  // Eliminar de la lista
+                                  const newImages = formData.imagenes.filter((_, i) => i !== currentImageIndex)
+                                  setFormData({ ...formData, imagenes: newImages })
+                                  
+                                  // Ajustar índice
+                                  if (currentImageIndex >= newImages.length && newImages.length > 0) {
+                                    setCurrentImageIndex(newImages.length - 1)
+                                  } else if (newImages.length === 0) {
+                                    setCurrentImageIndex(0)
+                                  }
+                                }}
+                                disabled={isCreating}
+                                title="Eliminar imagen actual"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                              
+                              {formData.imagenes.length > 1 && (
+                                <>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                                    onClick={() => {
+                                      setCurrentImageIndex(prev => 
+                                        prev === 0 ? formData.imagenes.length - 1 : prev - 1
+                                      )
+                                    }}
+                                    disabled={isCreating}
+                                  >
+                                    <ChevronLeft className="h-4 w-4" />
+                                  </Button>
+                                  
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                                    onClick={() => {
+                                      setCurrentImageIndex(prev => 
+                                        prev === formData.imagenes.length - 1 ? 0 : prev + 1
+                                      )
+                                    }}
+                                    disabled={isCreating}
+                                  >
+                                    <ChevronRight className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                            
+                            {formData.imagenes.length > 1 && (
+                              <div className="flex justify-center space-x-1">
+                                {formData.imagenes.map((_, index) => (
+                                  <button
+                                    key={index}
+                                    type="button"
+                                    className={`w-2 h-2 rounded-full ${
+                                      index === currentImageIndex ? 'bg-blue-500' : 'bg-gray-300'
+                                    }`}
+                                    onClick={() => setCurrentImageIndex(index)}
+                                    disabled={isCreating}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Sección de subida de imágenes */}
+                        <div className="space-y-3">
+                          <Label>Subir nuevas imágenes</Label>
+                          <div
+                            className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors"
+                            onDrop={async (e) => {
+                              e.preventDefault()
+                              if (isCreating) return
+                              
+                              const files = e.dataTransfer.files
+                              if (files.length === 0) return
+                              
+                              const remainingSlots = 5 - formData.imagenes.length
+                              if (remainingSlots <= 0) {
+                                alert('Ya tienes el máximo de 5 imágenes')
+                                return
+                              }
+                              
+                              const filesToUpload = Array.from(files).slice(0, remainingSlots)
+                              
+                              try {
+                                const uploadPromises = filesToUpload.map(async (file) => {
+                                  if (!file.type.startsWith('image/')) {
+                                    throw new Error('Solo se permiten archivos de imagen')
+                                  }
+                                  if (file.size > 5 * 1024 * 1024) {
+                                    throw new Error('El archivo es demasiado grande. Máximo 5MB')
+                                  }
+                                  
+                                  const fileExt = file.name.split('.').pop()
+                                  const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+                                  const filePath = `productos/${fileName}`
+                                  
+                                  const { data, error } = await supabase.storage
+                                    .from('imagenes')
+                                    .upload(filePath, file, {
+                                      cacheControl: '3600',
+                                      upsert: false
+                                    })
+                                  
+                                  if (error) throw error
+                                  
+                                  const { data: { publicUrl } } = supabase.storage
+                                    .from('imagenes')
+                                    .getPublicUrl(filePath)
+                                  
+                                  return publicUrl
+                                })
+                                
+                                const uploadedUrls = await Promise.all(uploadPromises)
+                                setFormData({ ...formData, imagenes: [...formData.imagenes, ...uploadedUrls] })
+                              } catch (error) {
+                                const errorMessage = error instanceof Error ? error.message : 'Error al subir imagen'
+                                alert(errorMessage)
+                              }
+                            }}
+                            onDragOver={(e) => e.preventDefault()}
+                          >
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              onChange={async (e) => {
+                                if (isCreating) return
+                                
+                                const files = e.target.files
+                                if (!files || files.length === 0) return
+                                
+                                const remainingSlots = 5 - formData.imagenes.length
+                                if (remainingSlots <= 0) {
+                                  alert('Ya tienes el máximo de 5 imágenes')
+                                  return
+                                }
+                                
+                                const filesToUpload = Array.from(files).slice(0, remainingSlots)
+                                
+                                try {
+                                  const uploadPromises = filesToUpload.map(async (file) => {
+                                    if (!file.type.startsWith('image/')) {
+                                      throw new Error('Solo se permiten archivos de imagen')
+                                    }
+                                    if (file.size > 5 * 1024 * 1024) {
+                                      throw new Error('El archivo es demasiado grande. Máximo 5MB')
+                                    }
+                                    
+                                    const fileExt = file.name.split('.').pop()
+                                    const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+                                    const filePath = `productos/${fileName}`
+                                    
+                                    const { data, error } = await supabase.storage
+                                      .from('imagenes')
+                                      .upload(filePath, file, {
+                                        cacheControl: '3600',
+                                        upsert: false
+                                      })
+                                    
+                                    if (error) throw error
+                                    
+                                    const { data: { publicUrl } } = supabase.storage
+                                      .from('imagenes')
+                                      .getPublicUrl(filePath)
+                                    
+                                    return publicUrl
+                                  })
+                                  
+                                  const uploadedUrls = await Promise.all(uploadPromises)
+                                  setFormData({ ...formData, imagenes: [...formData.imagenes, ...uploadedUrls] })
+                                } catch (error) {
+                                  const errorMessage = error instanceof Error ? error.message : 'Error al subir imagen'
+                                  alert(errorMessage)
+                                }
+                                
+                                e.target.value = ''
+                              }}
+                              className="hidden"
+                              id="image-upload-simple"
+                              disabled={isCreating}
+                            />
+                            <label htmlFor="image-upload-simple" className="cursor-pointer">
+                              <div className="flex flex-col items-center space-y-2">
+                                <Plus className="h-8 w-8 text-gray-400" />
+                                <p className="text-sm font-medium text-gray-700">
+                                  Arrastra imágenes aquí o haz clic para seleccionar
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  PNG, JPG, GIF hasta 5MB. Tienes {formData.imagenes.length}/5 imágenes
+                                </p>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="space-y-4">
@@ -841,31 +1236,40 @@ export const ProductosSection = React.memo(({
                   <TableCell className="font-medium">{producto.descripcion}</TableCell>
                   <TableCell>
                     {producto.descripcion_detallada ? (
-                        <div className="text-sm text-gray-600">
-                          {producto.descripcion_detallada.length > 50 
-                            ? `${producto.descripcion_detallada.substring(0, 50)}...` 
-                              : producto.descripcion_detallada}
-                      </div>
+                        <div 
+                          className="text-sm text-gray-600 max-w-[150px] truncate"
+                          dangerouslySetInnerHTML={{
+                            __html: producto.descripcion_detallada.length > 70 
+                              ? `${producto.descripcion_detallada.substring(0, 70)}...` 
+                              : producto.descripcion_detallada
+                          }}
+                        />
                     ) : (
                           <span className="text-gray-400 text-xs">Sin descripción</span>
                     )}
                   </TableCell>
                   <TableCell>
-                        <div className="flex gap-1">
-                      {getAllProductImages(producto).map((img, index) => (
-                            <div key={index} className="w-8 h-8 border rounded overflow-hidden relative">
+                    <div className="flex items-center gap-2">
+                      {producto.imagen ? (
+                        <>
+                          <div className="w-12 h-12 border rounded overflow-hidden">
                             <img
-                              src={img}
-                              alt={`${producto.descripcion} - Imagen ${index + 1}`}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
+                              src={producto.imagen}
+                              alt={`${producto.descripcion} - Imagen principal`}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
                               onError={(e) => {
                                 e.currentTarget.src = '/placeholder.jpg'
                               }}
-                              />
+                            />
                           </div>
-                        ))}
-                      {getAllProductImages(producto).length === 0 && (
+                          {getAllProductImages(producto).length > 1 && (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                              +{getAllProductImages(producto).length - 1}
+                            </span>
+                          )}
+                        </>
+                      ) : (
                         <span className="text-gray-400 text-xs">Sin imágenes</span>
                       )}
                     </div>
@@ -1021,9 +1425,12 @@ export const ProductosSection = React.memo(({
                     </div>
                     
                     {producto.descripcion_detallada && (
-                      <div className="text-xs text-gray-600 line-clamp-2">
-                        {producto.descripcion_detallada}
-                      </div>
+                      <div 
+                        className="text-xs text-gray-600 line-clamp-2"
+                        dangerouslySetInnerHTML={{
+                          __html: producto.descripcion_detallada
+                        }}
+                      />
                     )}
                     
                     <div className="flex gap-1 pt-2">
