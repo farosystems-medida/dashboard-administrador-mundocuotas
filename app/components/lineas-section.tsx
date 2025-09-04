@@ -10,91 +10,85 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { Categoria, Linea } from "@/lib/supabase"
+import type { Linea } from "@/lib/supabase"
 
-interface CategoriasSectionProps {
-  categorias: Categoria[]
+interface LineasSectionProps {
   lineas: Linea[]
-  onCreateCategoria: (categoria: Omit<Categoria, 'id' | 'created_at'>) => Promise<Categoria | undefined>
-  onUpdateCategoria: (id: number, updates: Partial<Categoria>) => Promise<Categoria | undefined>
-  onDeleteCategoria: (id: number) => Promise<void>
+  onCreateLinea: (linea: Omit<Linea, 'id' | 'created_at'>) => Promise<Linea | undefined>
+  onUpdateLinea: (id: number, updates: Partial<Linea>) => Promise<Linea | undefined>
+  onDeleteLinea: (id: number) => Promise<void>
 }
 
-export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpdateCategoria, onDeleteCategoria }: CategoriasSectionProps) {
+export function LineasSection({ lineas, onCreateLinea, onUpdateLinea, onDeleteLinea }: LineasSectionProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [categoriaToDelete, setCategoriaToDelete] = useState<Categoria | null>(null)
-  const [editingCategoria, setEditingCategoria] = useState<Categoria | null>(null)
+  const [lineaToDelete, setLineaToDelete] = useState<Linea | null>(null)
+  const [editingLinea, setEditingLinea] = useState<Linea | null>(null)
   const [formData, setFormData] = useState({
     descripcion: "",
-    fk_id_linea: undefined as number | undefined,
   })
 
   const resetForm = () => {
     setFormData({
       descripcion: "",
-      fk_id_linea: undefined,
     })
-    setEditingCategoria(null)
+    setEditingLinea(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const categoriaData = {
+    const lineaData = {
       descripcion: formData.descripcion,
-      fk_id_linea: formData.fk_id_linea,
     }
 
     try {
-      if (editingCategoria) {
-        await onUpdateCategoria(editingCategoria.id, categoriaData)
+      if (editingLinea) {
+        await onUpdateLinea(editingLinea.id, lineaData)
       } else {
-        await onCreateCategoria(categoriaData)
+        await onCreateLinea(lineaData)
       }
       setIsDialogOpen(false)
       resetForm()
     } catch (error) {
-      console.error('Error al guardar categoría:', error)
+      console.error('Error al guardar línea:', error)
     }
   }
 
-  const handleEdit = (categoria: Categoria) => {
-    setEditingCategoria(categoria)
+  const handleEdit = (linea: Linea) => {
+    setEditingLinea(linea)
     setFormData({
-      descripcion: categoria.descripcion,
-      fk_id_linea: categoria.fk_id_linea,
+      descripcion: linea.descripcion,
     })
     setIsDialogOpen(true)
   }
 
-  const handleDeleteClick = (categoria: Categoria) => {
-    setCategoriaToDelete(categoria)
+  const handleDeleteClick = (linea: Linea) => {
+    setLineaToDelete(linea)
     setIsDeleteDialogOpen(true)
   }
 
   const handleDeleteConfirm = async () => {
-    if (!categoriaToDelete) return
+    if (!lineaToDelete) return
     try {
-      await onDeleteCategoria(categoriaToDelete.id)
+      await onDeleteLinea(lineaToDelete.id)
       setIsDeleteDialogOpen(false)
-      setCategoriaToDelete(null)
+      setLineaToDelete(null)
     } catch (error) {
-      console.error('Error al eliminar categoría:', error)
+      console.error('Error al eliminar línea:', error)
     }
   }
 
   const handleDeleteCancel = () => {
     setIsDeleteDialogOpen(false)
-    setCategoriaToDelete(null)
+    setLineaToDelete(null)
   }
 
   return (
     <>
       <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Gestión de Categorías</CardTitle>
+        <CardTitle>Gestión de Líneas</CardTitle>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           if (open) {
             setIsDialogOpen(true)
@@ -104,12 +98,12 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
           <DialogTrigger asChild>
             <Button onClick={resetForm}>
               <Plus className="h-4 w-4 mr-2" />
-              Nueva Categoría
+              Nueva Línea
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md" showCloseButton={false}>
             <DialogHeader>
-              <DialogTitle>{editingCategoria ? "Editar Categoría" : "Nueva Categoría"}</DialogTitle>
+              <DialogTitle>{editingLinea ? "Editar Línea" : "Nueva Línea"}</DialogTitle>
               <Button
                 variant="ghost"
                 size="sm"
@@ -132,30 +126,8 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
                   required
                 />
               </div>
-              <div>
-                <Label htmlFor="linea">Línea (Opcional)</Label>
-                <Select 
-                  value={formData.fk_id_linea?.toString() || "none"} 
-                  onValueChange={(value) => setFormData({ 
-                    ...formData, 
-                    fk_id_linea: value === "none" ? undefined : parseInt(value) 
-                  })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar línea..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin línea</SelectItem>
-                    {lineas.map((linea) => (
-                      <SelectItem key={linea.id} value={linea.id.toString()}>
-                        {linea.descripcion}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <Button type="submit" className="w-full">
-                {editingCategoria ? "Actualizar" : "Crear"} Categoría
+                {editingLinea ? "Actualizar" : "Crear"} Línea
               </Button>
             </form>
           </DialogContent>
@@ -167,24 +139,22 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
             <TableRow>
               <TableHead>ID</TableHead>
               <TableHead>Descripción</TableHead>
-              <TableHead>Línea</TableHead>
               <TableHead>Fecha de Creación</TableHead>
               <TableHead>Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {categorias.map((categoria) => (
-              <TableRow key={categoria.id}>
-                <TableCell>{categoria.id}</TableCell>
-                <TableCell className="font-medium">{categoria.descripcion}</TableCell>
-                <TableCell>{categoria.linea?.descripcion || "Sin línea"}</TableCell>
-                <TableCell>{new Date(categoria.created_at).toLocaleDateString('es-AR')}</TableCell>
+            {lineas.map((linea) => (
+              <TableRow key={linea.id}>
+                <TableCell>{linea.id}</TableCell>
+                <TableCell className="font-medium">{linea.descripcion}</TableCell>
+                <TableCell>{new Date(linea.created_at).toLocaleDateString('es-AR')}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(categoria)}>
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(linea)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDeleteClick(categoria)}>
+                    <Button variant="outline" size="sm" onClick={() => handleDeleteClick(linea)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -205,7 +175,7 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
         <div className="space-y-4">
           <div>
             <p className="text-gray-700 text-sm">
-              ¿Estás seguro de que quieres eliminar la categoría <strong>"{categoriaToDelete?.descripcion}"</strong>?
+              ¿Estás seguro de que quieres eliminar la línea <strong>"{lineaToDelete?.descripcion}"</strong>?
             </p>
           </div>
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -214,7 +184,7 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
               <span className="font-medium text-yellow-800 text-sm">Atención</span>
             </div>
             <p className="text-yellow-700 text-xs mt-1">
-              Esta acción no se puede deshacer. La categoría será eliminada permanentemente.
+              Esta acción no se puede deshacer. La línea será eliminada permanentemente.
             </p>
           </div>
         </div>
@@ -230,4 +200,4 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
          </Dialog>
    </>
   )
-} 
+}

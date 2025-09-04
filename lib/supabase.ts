@@ -5,17 +5,27 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// Tipos para las líneas
+export interface Linea {
+  id: number
+  descripcion: string
+  created_at: string
+}
+
 // Tipos para las categorías
 export interface Categoria {
   id: number
   descripcion: string
+  fk_id_linea?: number
   created_at: string
+  linea?: Linea
 }
 
 // Tipos para las marcas
 export interface Marca {
   id: number
   descripcion: string
+  logo?: string
   created_at: string
 }
 

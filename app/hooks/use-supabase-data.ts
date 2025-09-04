@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { supabase, Producto, PlanFinanciacion, ProductoPlan, ProductoPlanDefault, Categoria, Marca, Zona, Configuracion, ConfiguracionZona, PlanCategoria } from '@/lib/supabase'
+import { supabase, Producto, PlanFinanciacion, ProductoPlan, ProductoPlanDefault, Categoria, Marca, Zona, Configuracion, ConfiguracionZona, PlanCategoria, Linea } from '@/lib/supabase'
 import { testSupabaseConnection } from '@/lib/supabase-debug'
 import { setupSupabaseAuth } from '@/lib/supabase-auth'
 import { useUser } from '@clerk/nextjs'
@@ -13,6 +13,7 @@ export function useSupabaseData() {
   const [productosPorPlan, setProductosPorPlan] = useState<ProductoPlan[]>([])
   const [productosPorPlanDefault, setProductosPorPlanDefault] = useState<ProductoPlanDefault[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [lineas, setLineas] = useState<Linea[]>([])
   const [planesCategorias, setPlanesCategorias] = useState<PlanCategoria[]>([])
   const [marcas, setMarcas] = useState<Marca[]>([])
   const [zonas, setZonas] = useState<Zona[]>([])
@@ -121,8 +122,11 @@ export function useSupabaseData() {
   const loadCategorias = async () => {
     try {
       const { data, error } = await supabase
-        .from('categoria')
-        .select('*')
+        .from('categorias')
+        .select(`
+          *,
+          linea:fk_id_linea(*)
+        `)
         .order('descripcion', { ascending: true })
 
       if (error) throw error
@@ -130,6 +134,22 @@ export function useSupabaseData() {
     } catch (err) {
       setError('Error al cargar categorías')
       console.error('Error loading categorias:', err)
+    }
+  }
+
+  // Cargar líneas
+  const loadLineas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('lineas')
+        .select('*')
+        .order('descripcion', { ascending: true })
+
+      if (error) throw error
+      setLineas(data || [])
+    } catch (err) {
+      setError('Error al cargar líneas')
+      console.error('Error loading lineas:', err)
     }
   }
 
@@ -369,11 +389,65 @@ export function useSupabaseData() {
     }
   }
 
+  // Crear línea
+  const createLinea = async (linea: Omit<Linea, 'id' | 'created_at'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('lineas')
+        .insert([linea])
+        .select()
+
+      if (error) throw error
+      await loadLineas()
+      return data?.[0]
+    } catch (err) {
+      setError('Error al crear línea')
+      console.error('Error creating linea:', err)
+      throw err
+    }
+  }
+
+  // Actualizar línea
+  const updateLinea = async (id: number, updates: Partial<Linea>) => {
+    try {
+      const { data, error } = await supabase
+        .from('lineas')
+        .update(updates)
+        .eq('id', id)
+        .select()
+
+      if (error) throw error
+      await loadLineas()
+      return data?.[0]
+    } catch (err) {
+      setError('Error al actualizar línea')
+      console.error('Error updating linea:', err)
+      throw err
+    }
+  }
+
+  // Eliminar línea
+  const deleteLinea = async (id: number) => {
+    try {
+      const { error } = await supabase
+        .from('lineas')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      await loadLineas()
+    } catch (err) {
+      setError('Error al eliminar línea')
+      console.error('Error deleting linea:', err)
+      throw err
+    }
+  }
+
   // Crear categoría
   const createCategoria = async (categoria: Omit<Categoria, 'id' | 'created_at'>) => {
     try {
       const { data, error } = await supabase
-        .from('categoria')
+        .from('categorias')
         .insert([categoria])
         .select()
 
@@ -391,7 +465,7 @@ export function useSupabaseData() {
   const updateCategoria = async (id: number, updates: Partial<Categoria>) => {
     try {
       const { data, error } = await supabase
-        .from('categoria')
+        .from('categorias')
         .update(updates)
         .eq('id', id)
         .select()
@@ -410,7 +484,7 @@ export function useSupabaseData() {
   const deleteCategoria = async (id: number) => {
     try {
       const { error } = await supabase
-        .from('categoria')
+        .from('categorias')
         .delete()
         .eq('id', id)
 
@@ -908,6 +982,7 @@ export function useSupabaseData() {
             loadProductosPorPlan(),
             loadProductosPorPlanDefault(),
             loadCategorias(),
+            loadLineas(),
             loadPlanesCategorias(),
             loadMarcas(),
             loadZonas(),
@@ -925,6 +1000,7 @@ export function useSupabaseData() {
     productosPorPlan,
     productosPorPlanDefault,
     categorias,
+    lineas,
     marcas,
     zonas,
     configuracionZonas,
@@ -938,6 +1014,9 @@ export function useSupabaseData() {
     updatePlan,
     deletePlan,
     syncPlanAssociationsStatus,
+    createLinea,
+    updateLinea,
+    deleteLinea,
     createCategoria,
     updateCategoria,
     deleteCategoria,
@@ -968,6 +1047,7 @@ export function useSupabaseData() {
         loadProductosPorPlan(),
         loadProductosPorPlanDefault(),
         loadCategorias(),
+        loadLineas(),
         loadPlanesCategorias(),
         loadMarcas(),
         loadZonas(),

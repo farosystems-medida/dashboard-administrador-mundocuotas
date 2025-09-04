@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { AppSidebar } from "./components/app-sidebar"
 import { DashboardSection } from "./components/dashboard-section"
 import { ProductosSection } from "./components/productos-section"
+import { LineasSection } from "./components/lineas-section"
 import { CategoriasSection } from "./components/categorias-section"
 import { MarcasSection } from "./components/marcas-section"
 import { ZonasSection } from "./components/zonas-section"
@@ -33,6 +34,7 @@ function Dashboard() {
     productosPorPlan, 
     productosPorPlanDefault,
     categorias,
+    lineas,
     marcas,
     zonas,
     configuracion,
@@ -43,6 +45,9 @@ function Dashboard() {
     updateProducto,
     deleteProducto,
     getPlanesAsociados,
+    createLinea,
+    updateLinea,
+    deleteLinea,
     createCategoria,
     updateCategoria,
     deleteCategoria,
@@ -122,6 +127,8 @@ function Dashboard() {
     switch (activeSection) {
       case "productos":
         return "Productos"
+      case "lineas":
+        return "Líneas"
       case "categorias":
         return "Categorías"
       case "marcas":
@@ -170,10 +177,20 @@ function Dashboard() {
             onDeleteProducto={deleteProducto}
           />
         )
+      case "lineas":
+        return (
+          <LineasSection 
+            lineas={lineas} 
+            onCreateLinea={createLinea}
+            onUpdateLinea={updateLinea}
+            onDeleteLinea={deleteLinea}
+          />
+        )
       case "categorias":
         return (
           <CategoriasSection 
-            categorias={categorias} 
+            categorias={categorias}
+            lineas={lineas}
             onCreateCategoria={createCategoria}
             onUpdateCategoria={updateCategoria}
             onDeleteCategoria={deleteCategoria}
