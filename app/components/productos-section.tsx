@@ -62,6 +62,8 @@ export const ProductosSection = React.memo(({
     aplica_solo_categoria: false,
     aplica_plan_especial: false
   })
+  const [currentColor, setCurrentColor] = useState("#000000")
+  const [currentColorCode, setCurrentColorCode] = useState("")
 
   // Filtrado de productos por búsqueda y filtros
   const filteredProductos = useMemo(() => {
@@ -274,6 +276,58 @@ export const ProductosSection = React.memo(({
     }, 100)
   }, [])
 
+  // Función para convertir color hex a código descriptivo
+  const getColorCode = useCallback((color: string) => {
+    const colorMappings: { [key: string]: string } = {
+      '#000000': 'Negro',
+      '#ffffff': 'Blanco',
+      '#ff0000': 'Rojo',
+      '#00ff00': 'Verde',
+      '#0000ff': 'Azul',
+      '#ffff00': 'Amarillo',
+      '#ff00ff': 'Magenta',
+      '#00ffff': 'Cian',
+      '#808080': 'Gris',
+      '#800000': 'Marrón',
+      '#008000': 'Verde Oscuro',
+      '#000080': 'Azul Marino',
+      '#800080': 'Púrpura',
+      '#808000': 'Oliva',
+      '#008080': 'Verde Azulado'
+    }
+    return colorMappings[color.toLowerCase()] || color.toUpperCase()
+  }, [])
+
+  // Función para detectar el color actual en la selección
+  const detectCurrentColor = useCallback(() => {
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0) return
+
+    const range = selection.getRangeAt(0)
+    const parentElement = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+      ? range.commonAncestorContainer.parentElement
+      : range.commonAncestorContainer as Element
+
+    if (parentElement) {
+      const computedStyle = window.getComputedStyle(parentElement as Element)
+      const color = computedStyle.color
+      
+      // Convertir rgb a hex si es necesario
+      const rgbMatch = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/)
+      if (rgbMatch) {
+        const r = parseInt(rgbMatch[1])
+        const g = parseInt(rgbMatch[2])
+        const b = parseInt(rgbMatch[3])
+        const hexColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+        setCurrentColor(hexColor)
+        setCurrentColorCode(getColorCode(hexColor))
+      } else if (color.startsWith('#')) {
+        setCurrentColor(color)
+        setCurrentColorCode(getColorCode(color))
+      }
+    }
+  }, [getColorCode])
+
   const resetForm = () => {
     setFormData({
       descripcion: "",
@@ -290,6 +344,8 @@ export const ProductosSection = React.memo(({
     })
     setEditingProduct(null)
     setCurrentImageIndex(0)
+    setCurrentColor("#000000")
+    setCurrentColorCode("")
   }
 
   const handleEdit = (producto: Producto) => {
@@ -744,13 +800,38 @@ export const ProductosSection = React.memo(({
                   
                   <input
                     type="color"
+                    value={currentColor}
                     className="w-8 h-8 border rounded cursor-pointer"
                     onChange={(e) => {
-                      document.execCommand('foreColor', false, e.target.value)
+                      const newColor = e.target.value
+                      setCurrentColor(newColor)
+                      setCurrentColorCode(getColorCode(newColor))
+                      document.execCommand('foreColor', false, newColor)
                     }}
                     disabled={isCreating}
                     title="Color de texto"
                   />
+                  
+                  <div className="border-l mx-2" />
+                  
+                  <div className="flex items-center space-x-2">
+                    <Label className="text-xs font-medium text-gray-600">Código:</Label>
+                    <Input
+                      value={currentColorCode}
+                      onChange={(e) => {
+                        setCurrentColorCode(e.target.value)
+                      }}
+                      className="w-20 h-6 text-xs"
+                      placeholder="Color"
+                      disabled={isCreating}
+                      title="Código del color actual"
+                    />
+                    <div 
+                      className="w-4 h-4 border border-gray-300 rounded"
+                      style={{ backgroundColor: currentColor }}
+                      title={`Color actual: ${currentColor}`}
+                    />
+                  </div>
                   
                   <div className="border-l mx-2" />
                   
@@ -791,6 +872,10 @@ export const ProductosSection = React.memo(({
                     const text = e.clipboardData?.getData('text/plain') || ''
                     document.execCommand('insertText', false, text)
                   }}
+                  onMouseUp={detectCurrentColor}
+                  onKeyUp={detectCurrentColor}
+                  onFocus={detectCurrentColor}
+                  onClick={detectCurrentColor}
                   suppressContentEditableWarning={true}
                 />
                 
