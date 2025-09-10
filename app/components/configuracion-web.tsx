@@ -46,22 +46,7 @@ export function ConfiguracionWebComponent({
     // Mobile
     mobile_logo_width: configuracionWeb?.mobile_logo_width || 150,
     mobile_logo_height: configuracionWeb?.mobile_logo_height || 45,
-    mobile_appbar_height: configuracionWeb?.mobile_appbar_height || 56,
-    mobile_section_title_size: configuracionWeb?.mobile_section_title_size || 20,
-    mobile_section_subtitle_size: configuracionWeb?.mobile_section_subtitle_size || 16,
-    mobile_section_text_size: configuracionWeb?.mobile_section_text_size || 14,
-    mobile_search_box_width: configuracionWeb?.mobile_search_box_width || 300,
-    mobile_search_box_height: configuracionWeb?.mobile_search_box_height || 36,
-    mobile_home_section_height: configuracionWeb?.mobile_home_section_height || 300,
-    
-    // Colores
-    primary_color: configuracionWeb?.primary_color || "#0066cc",
-    secondary_color: configuracionWeb?.secondary_color || "#f8f9fa",
-    accent_color: configuracionWeb?.accent_color || "#ff6b35",
-    
-    // Tipografías
-    font_family_primary: configuracionWeb?.font_family_primary || "Inter, sans-serif",
-    font_family_secondary: configuracionWeb?.font_family_secondary || "Roboto, sans-serif"
+    mobile_appbar_height: configuracionWeb?.mobile_appbar_height || 56
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,18 +85,7 @@ export function ConfiguracionWebComponent({
       home_section_height: 500,
       mobile_logo_width: 150,
       mobile_logo_height: 45,
-      mobile_appbar_height: 56,
-      mobile_section_title_size: 20,
-      mobile_section_subtitle_size: 16,
-      mobile_section_text_size: 14,
-      mobile_search_box_width: 300,
-      mobile_search_box_height: 36,
-      mobile_home_section_height: 300,
-      primary_color: "#0066cc",
-      secondary_color: "#f8f9fa",
-      accent_color: "#ff6b35",
-      font_family_primary: "Inter, sans-serif",
-      font_family_secondary: "Roboto, sans-serif"
+      mobile_appbar_height: 56
     })
   }
 
@@ -136,7 +110,7 @@ export function ConfiguracionWebComponent({
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <Tabs defaultValue="desktop" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="desktop" className="flex items-center gap-2">
                 <Monitor className="h-4 w-4" />
                 Desktop
@@ -144,14 +118,6 @@ export function ConfiguracionWebComponent({
               <TabsTrigger value="mobile" className="flex items-center gap-2">
                 <Smartphone className="h-4 w-4" />
                 Mobile
-              </TabsTrigger>
-              <TabsTrigger value="colors" className="flex items-center gap-2">
-                <Palette className="h-4 w-4" />
-                Colores
-              </TabsTrigger>
-              <TabsTrigger value="fonts" className="flex items-center gap-2">
-                <Type className="h-4 w-4" />
-                Tipografías
               </TabsTrigger>
             </TabsList>
 
@@ -269,97 +235,6 @@ export function ConfiguracionWebComponent({
                 </div>
               </div>
 
-              <Separator />
-
-              {/* Typography Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Tamaños de Texto</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="section_title_size">Títulos de Sección (px)</Label>
-                    <Input
-                      id="section_title_size"
-                      type="number"
-                      value={formData.section_title_size}
-                      onChange={(e) => handleInputChange('section_title_size', parseInt(e.target.value) || 0)}
-                      min={12}
-                      max={48}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="section_subtitle_size">Subtítulos (px)</Label>
-                    <Input
-                      id="section_subtitle_size"
-                      type="number"
-                      value={formData.section_subtitle_size}
-                      onChange={(e) => handleInputChange('section_subtitle_size', parseInt(e.target.value) || 0)}
-                      min={10}
-                      max={32}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="section_text_size">Texto Normal (px)</Label>
-                    <Input
-                      id="section_text_size"
-                      type="number"
-                      value={formData.section_text_size}
-                      onChange={(e) => handleInputChange('section_text_size', parseInt(e.target.value) || 0)}
-                      min={8}
-                      max={24}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Search & Home Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Elementos Principales</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-4">
-                    <h4 className="font-medium">Caja de Búsqueda</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label htmlFor="search_box_width">Ancho (px)</Label>
-                        <Input
-                          id="search_box_width"
-                          type="number"
-                          value={formData.search_box_width}
-                          onChange={(e) => handleInputChange('search_box_width', parseInt(e.target.value) || 0)}
-                          min={200}
-                          max={800}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="search_box_height">Alto (px)</Label>
-                        <Input
-                          id="search_box_height"
-                          type="number"
-                          value={formData.search_box_height}
-                          onChange={(e) => handleInputChange('search_box_height', parseInt(e.target.value) || 0)}
-                          min={30}
-                          max={80}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">Sección Principal</h4>
-                    <div>
-                      <Label htmlFor="home_section_height">Altura (px)</Label>
-                      <Input
-                        id="home_section_height"
-                        type="number"
-                        value={formData.home_section_height}
-                        onChange={(e) => handleInputChange('home_section_height', parseInt(e.target.value) || 0)}
-                        min={200}
-                        max={1000}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
             </TabsContent>
 
             <TabsContent value="mobile" className="space-y-6 mt-6">
@@ -410,238 +285,10 @@ export function ConfiguracionWebComponent({
                 </div>
               </div>
 
-              <Separator />
 
-              {/* Mobile Typography */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Tamaños de Texto Móvil</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="mobile_section_title_size">Títulos (px)</Label>
-                    <Input
-                      id="mobile_section_title_size"
-                      type="number"
-                      value={formData.mobile_section_title_size}
-                      onChange={(e) => handleInputChange('mobile_section_title_size', parseInt(e.target.value) || 0)}
-                      min={10}
-                      max={32}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="mobile_section_subtitle_size">Subtítulos (px)</Label>
-                    <Input
-                      id="mobile_section_subtitle_size"
-                      type="number"
-                      value={formData.mobile_section_subtitle_size}
-                      onChange={(e) => handleInputChange('mobile_section_subtitle_size', parseInt(e.target.value) || 0)}
-                      min={8}
-                      max={24}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="mobile_section_text_size">Texto Normal (px)</Label>
-                    <Input
-                      id="mobile_section_text_size"
-                      type="number"
-                      value={formData.mobile_section_text_size}
-                      onChange={(e) => handleInputChange('mobile_section_text_size', parseInt(e.target.value) || 0)}
-                      min={8}
-                      max={20}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Mobile Elements */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Elementos Móviles</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-4">
-                    <h4 className="font-medium">Búsqueda Móvil</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label htmlFor="mobile_search_box_width">Ancho (px)</Label>
-                        <Input
-                          id="mobile_search_box_width"
-                          type="number"
-                          value={formData.mobile_search_box_width}
-                          onChange={(e) => handleInputChange('mobile_search_box_width', parseInt(e.target.value) || 0)}
-                          min={200}
-                          max={400}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="mobile_search_box_height">Alto (px)</Label>
-                        <Input
-                          id="mobile_search_box_height"
-                          type="number"
-                          value={formData.mobile_search_box_height}
-                          onChange={(e) => handleInputChange('mobile_search_box_height', parseInt(e.target.value) || 0)}
-                          min={30}
-                          max={50}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">Home Móvil</h4>
-                    <div>
-                      <Label htmlFor="mobile_home_section_height">Altura (px)</Label>
-                      <Input
-                        id="mobile_home_section_height"
-                        type="number"
-                        value={formData.mobile_home_section_height}
-                        onChange={(e) => handleInputChange('mobile_home_section_height', parseInt(e.target.value) || 0)}
-                        min={200}
-                        max={600}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
             </TabsContent>
 
-            <TabsContent value="colors" className="space-y-6 mt-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Paleta de Colores</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <Label htmlFor="primary_color">Color Primario</Label>
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        id="primary_color"
-                        type="color"
-                        value={formData.primary_color}
-                        onChange={(e) => handleInputChange('primary_color', e.target.value)}
-                        className="w-16"
-                      />
-                      <Input
-                        value={formData.primary_color}
-                        onChange={(e) => handleInputChange('primary_color', e.target.value)}
-                        placeholder="#0066cc"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Botones principales, enlaces</p>
-                  </div>
-                  <div>
-                    <Label htmlFor="secondary_color">Color Secundario</Label>
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        id="secondary_color"
-                        type="color"
-                        value={formData.secondary_color}
-                        onChange={(e) => handleInputChange('secondary_color', e.target.value)}
-                        className="w-16"
-                      />
-                      <Input
-                        value={formData.secondary_color}
-                        onChange={(e) => handleInputChange('secondary_color', e.target.value)}
-                        placeholder="#f8f9fa"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Fondos, áreas secundarias</p>
-                  </div>
-                  <div>
-                    <Label htmlFor="accent_color">Color de Acento</Label>
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        id="accent_color"
-                        type="color"
-                        value={formData.accent_color}
-                        onChange={(e) => handleInputChange('accent_color', e.target.value)}
-                        className="w-16"
-                      />
-                      <Input
-                        value={formData.accent_color}
-                        onChange={(e) => handleInputChange('accent_color', e.target.value)}
-                        placeholder="#ff6b35"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Destacados, ofertas</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-4 mt-6">
-                  <div className="h-20 rounded-lg flex items-center justify-center text-white font-medium" style={{ backgroundColor: formData.primary_color }}>
-                    Primario
-                  </div>
-                  <div className="h-20 rounded-lg flex items-center justify-center border font-medium" style={{ backgroundColor: formData.secondary_color }}>
-                    Secundario
-                  </div>
-                  <div className="h-20 rounded-lg flex items-center justify-center text-white font-medium" style={{ backgroundColor: formData.accent_color }}>
-                    Acento
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
 
-            <TabsContent value="fonts" className="space-y-6 mt-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Familias Tipográficas</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="font_family_primary">Tipografía Principal</Label>
-                    <Input
-                      id="font_family_primary"
-                      value={formData.font_family_primary}
-                      onChange={(e) => handleInputChange('font_family_primary', e.target.value)}
-                      placeholder="Inter, sans-serif"
-                      className="mt-2"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Para títulos y elementos principales</p>
-                    <div 
-                      className="mt-3 p-3 border rounded text-lg"
-                      style={{ fontFamily: formData.font_family_primary }}
-                    >
-                      Ejemplo de texto principal
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="font_family_secondary">Tipografía Secundaria</Label>
-                    <Input
-                      id="font_family_secondary"
-                      value={formData.font_family_secondary}
-                      onChange={(e) => handleInputChange('font_family_secondary', e.target.value)}
-                      placeholder="Roboto, sans-serif"
-                      className="mt-2"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Para texto de contenido y descripciones</p>
-                    <div 
-                      className="mt-3 p-3 border rounded"
-                      style={{ fontFamily: formData.font_family_secondary }}
-                    >
-                      Ejemplo de texto secundario con más contenido
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2">Tipografías Recomendadas</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <strong>Para títulos:</strong>
-                      <ul className="mt-1 space-y-1">
-                        <li>Inter, sans-serif</li>
-                        <li>Poppins, sans-serif</li>
-                        <li>Montserrat, sans-serif</li>
-                        <li>Raleway, sans-serif</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <strong>Para contenido:</strong>
-                      <ul className="mt-1 space-y-1">
-                        <li>Roboto, sans-serif</li>
-                        <li>Open Sans, sans-serif</li>
-                        <li>Lato, sans-serif</li>
-                        <li>Source Sans Pro, sans-serif</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
           </Tabs>
         </form>
       </CardContent>
