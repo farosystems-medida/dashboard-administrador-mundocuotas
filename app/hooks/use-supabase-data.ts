@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { supabase, Producto, PlanFinanciacion, ProductoPlan, ProductoPlanDefault, Categoria, Marca, Zona, Configuracion, ConfiguracionZona, PlanCategoria, Linea } from '@/lib/supabase'
+import { supabase, Producto, PlanFinanciacion, ProductoPlan, ProductoPlanDefault, Categoria, Marca, Zona, Configuracion, ConfiguracionZona, ConfiguracionWeb, PlanCategoria, Linea } from '@/lib/supabase'
 import { testSupabaseConnection } from '@/lib/supabase-debug'
 import { setupSupabaseAuth } from '@/lib/supabase-auth'
 import { useUser } from '@clerk/nextjs'
@@ -19,6 +19,7 @@ export function useSupabaseData() {
   const [zonas, setZonas] = useState<Zona[]>([])
   const [configuracion, setConfiguracion] = useState<Configuracion | null>(null)
   const [configuracionZonas, setConfiguracionZonas] = useState<ConfiguracionZona[]>([])
+  const [configuracionWeb, setConfiguracionWeb] = useState<ConfiguracionWeb | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -957,6 +958,73 @@ export function useSupabaseData() {
     }
   }
 
+  // Cargar configuración web
+  const loadConfiguracionWeb = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('configuracion_web')
+        .select('*')
+        .eq('id', 1)
+        .single()
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No existe, está bien, quedará como null
+          setConfiguracionWeb(null)
+        } else {
+          throw error
+        }
+      } else {
+        setConfiguracionWeb(data)
+      }
+    } catch (err) {
+      setError('Error al cargar configuración web')
+      console.error('Error loading configuracion_web:', err)
+    }
+  }
+
+  // Actualizar configuración web
+  const updateConfiguracionWeb = async (updates: Partial<ConfiguracionWeb>) => {
+    try {
+      let { data, error } = await supabase
+        .from('configuracion_web')
+        .select('*')
+        .eq('id', 1)
+        .single()
+
+      if (error && error.code === 'PGRST116') {
+        // Si no existe, crear el registro
+        const { data: newData, error: insertError } = await supabase
+          .from('configuracion_web')
+          .insert([{ id: 1, ...updates }])
+          .select()
+          .single()
+
+        if (insertError) throw insertError
+        setConfiguracionWeb(newData)
+        return newData
+      } else if (error) {
+        throw error
+      } else {
+        // Si existe, actualizar
+        const { data: updatedData, error: updateError } = await supabase
+          .from('configuracion_web')
+          .update(updates)
+          .eq('id', 1)
+          .select()
+          .single()
+
+        if (updateError) throw updateError
+        setConfiguracionWeb(updatedData)
+        return updatedData
+      }
+    } catch (err) {
+      setError('Error al actualizar configuración web')
+      console.error('Error updating configuracion_web:', err)
+      throw err
+    }
+  }
+
   // Cargar todos los datos cuando el usuario esté autenticado
   useEffect(() => {
     if (isLoaded && user) {
@@ -987,7 +1055,8 @@ export function useSupabaseData() {
             loadMarcas(),
             loadZonas(),
             loadConfiguracionZonas(),
-            loadConfiguracion()
+            loadConfiguracion(),
+            loadConfiguracionWeb()
           ]).finally(() => setLoading(false))
         })
       })
@@ -1004,6 +1073,7 @@ export function useSupabaseData() {
     marcas,
     zonas,
     configuracionZonas,
+    configuracionWeb,
     loading,
     error,
     createProducto,
@@ -1039,6 +1109,7 @@ export function useSupabaseData() {
     getCategoriasDePlan,
     configuracion,
     updateConfiguracion,
+    updateConfiguracionWeb,
     refreshData: () => {
       setLoading(true)
       Promise.all([
@@ -1052,7 +1123,8 @@ export function useSupabaseData() {
         loadMarcas(),
         loadZonas(),
         loadConfiguracionZonas(),
-        loadConfiguracion()
+        loadConfiguracion(),
+        loadConfiguracionWeb()
       ]).finally(() => setLoading(false))
     }
   }

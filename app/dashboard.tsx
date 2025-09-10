@@ -12,9 +12,11 @@ import { PlanesSection } from "./components/planes-section"
 import { ProductosPlanSection } from "./components/productos-plan-section"
 import { ProductosPlanesSection } from "./components/productos-planes-section"
 import { ConfiguracionZonas } from "./components/configuracion-zonas"
+import { ConfiguracionWebComponent } from "./components/configuracion-web"
 import { useSupabaseData } from "./hooks/use-supabase-data"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UserButton, useUser } from "@clerk/nextjs"
 import {
   Breadcrumb,
@@ -39,6 +41,7 @@ function Dashboard() {
     zonas,
     configuracion,
     configuracionZonas,
+    configuracionWeb,
     loading, 
     error,
     createProducto,
@@ -72,6 +75,7 @@ function Dashboard() {
     deleteProductoPlanDefault,
     getCategoriasDePlan,
     updateConfiguracion,
+    updateConfiguracionWeb,
     refreshData
   } = useSupabaseData()
 
@@ -251,15 +255,29 @@ function Dashboard() {
         )
       case "configuracion":
         return (
-          <div className="space-y-6">
-            <ConfiguracionZonas
-              zonas={zonas}
-              configuracionZonas={configuracionZonas}
-              onCreateConfiguracionZona={createConfiguracionZona}
-              onUpdateConfiguracionZona={updateConfiguracionZona}
-              onDeleteConfiguracionZona={deleteConfiguracionZona}
-            />
-          </div>
+          <Tabs defaultValue="zonas" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="zonas">WhatsApp por Zona</TabsTrigger>
+              <TabsTrigger value="web">Web</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="zonas" className="space-y-6 mt-6">
+              <ConfiguracionZonas
+                zonas={zonas}
+                configuracionZonas={configuracionZonas}
+                onCreateConfiguracionZona={createConfiguracionZona}
+                onUpdateConfiguracionZona={updateConfiguracionZona}
+                onDeleteConfiguracionZona={deleteConfiguracionZona}
+              />
+            </TabsContent>
+            
+            <TabsContent value="web" className="space-y-6 mt-6">
+              <ConfiguracionWebComponent
+                configuracionWeb={configuracionWeb}
+                onUpdateConfiguracionWeb={updateConfiguracionWeb}
+              />
+            </TabsContent>
+          </Tabs>
         )
       default:
         return <DashboardSection productos={productos} planes={planes} productosPorPlan={productosPorPlan} />

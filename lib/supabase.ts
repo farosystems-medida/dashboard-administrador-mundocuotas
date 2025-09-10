@@ -123,4 +123,52 @@ export interface ConfiguracionZona {
   telefono: string
   created_at: string
   zona?: Zona
+}
+
+// Tipo para la configuración web
+export interface ConfiguracionWeb {
+  id: number
+  created_at: string
+  
+  // Configuraciones Desktop
+  logo_url?: string
+  logo_width: number
+  logo_height: number
+  
+  appbar_height: number
+  appbar_background_color: string
+  appbar_text_color: string
+  
+  section_title_size: number
+  section_subtitle_size: number
+  section_text_size: number
+  
+  search_box_width: number
+  search_box_height: number
+  
+  home_section_height: number
+  
+  // Configuraciones Mobile
+  mobile_logo_width: number
+  mobile_logo_height: number
+  
+  mobile_appbar_height: number
+  
+  mobile_section_title_size: number
+  mobile_section_subtitle_size: number
+  mobile_section_text_size: number
+  
+  mobile_search_box_width: number
+  mobile_search_box_height: number
+  
+  mobile_home_section_height: number
+  
+  // Colores generales
+  primary_color: string
+  secondary_color: string
+  accent_color: string
+  
+  // Tipografías
+  font_family_primary: string
+  font_family_secondary: string
 } 
