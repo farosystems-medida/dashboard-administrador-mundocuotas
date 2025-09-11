@@ -1,23 +1,31 @@
 "use client"
 
 import React, { useState } from "react"
-import { Monitor, Smartphone, Save, Palette, Type, Layout, Upload } from "lucide-react"
+import { Monitor, Smartphone, Save, Palette, Type, Layout, Upload, Home, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
-import { ConfiguracionWeb } from "@/lib/supabase"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { ConfiguracionWeb, PlanFinanciacion, Categoria, Marca } from "@/lib/supabase"
 
 interface ConfiguracionWebProps {
   configuracionWeb?: ConfiguracionWeb
   onUpdateConfiguracionWeb: (updates: Partial<ConfiguracionWeb>) => Promise<ConfiguracionWeb | undefined>
+  planes?: PlanFinanciacion[]
+  categorias?: Categoria[]
+  marcas?: Marca[]
 }
 
 export function ConfiguracionWebComponent({ 
   configuracionWeb,
-  onUpdateConfiguracionWeb 
+  onUpdateConfiguracionWeb,
+  planes = [],
+  categorias = [],
+  marcas = []
 }: ConfiguracionWebProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -46,7 +54,14 @@ export function ConfiguracionWebComponent({
     // Mobile
     mobile_logo_width: configuracionWeb?.mobile_logo_width || 150,
     mobile_logo_height: configuracionWeb?.mobile_logo_height || 45,
-    mobile_appbar_height: configuracionWeb?.mobile_appbar_height || 56
+    mobile_appbar_height: configuracionWeb?.mobile_appbar_height || 56,
+    
+    // Home Section Configuration
+    home_display_plan_id: configuracionWeb?.home_display_plan_id || null,
+    home_display_products_count: configuracionWeb?.home_display_products_count || 12,
+    home_display_category_filter: configuracionWeb?.home_display_category_filter || null,
+    home_display_brand_filter: configuracionWeb?.home_display_brand_filter || null,
+    home_display_featured_only: configuracionWeb?.home_display_featured_only || false
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,7 +77,7 @@ export function ConfiguracionWebComponent({
     }
   }
 
-  const handleInputChange = (field: keyof typeof formData, value: string | number) => {
+  const handleInputChange = (field: keyof typeof formData, value: string | number | boolean | null) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -85,7 +100,12 @@ export function ConfiguracionWebComponent({
       home_section_height: 500,
       mobile_logo_width: 150,
       mobile_logo_height: 45,
-      mobile_appbar_height: 56
+      mobile_appbar_height: 56,
+      home_display_plan_id: null,
+      home_display_products_count: 12,
+      home_display_category_filter: null,
+      home_display_brand_filter: null,
+      home_display_featured_only: false
     })
   }
 
@@ -110,7 +130,7 @@ export function ConfiguracionWebComponent({
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <Tabs defaultValue="desktop" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="desktop" className="flex items-center gap-2">
                 <Monitor className="h-4 w-4" />
                 Desktop
@@ -118,6 +138,10 @@ export function ConfiguracionWebComponent({
               <TabsTrigger value="mobile" className="flex items-center gap-2">
                 <Smartphone className="h-4 w-4" />
                 Mobile
+              </TabsTrigger>
+              <TabsTrigger value="home" className="flex items-center gap-2">
+                <Home className="h-4 w-4" />
+                Home Section
               </TabsTrigger>
             </TabsList>
 
@@ -288,6 +312,132 @@ export function ConfiguracionWebComponent({
 
             </TabsContent>
 
+            <TabsContent value="home" className="space-y-6 mt-6">
+              {/* Home Section Configuration */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  <h3 className="text-lg font-semibold">Configuración de Productos en Home</h3>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Configura qué plan y productos mostrar en la sección principal del sitio web
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Plan Selection */}
+                  <div>
+                    <Label htmlFor="home_display_plan_id">Plan a Mostrar</Label>
+                    <Select 
+                      value={formData.home_display_plan_id?.toString() || "null"} 
+                      onValueChange={(value) => handleInputChange('home_display_plan_id', value === "null" ? null : parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar plan..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="null">Sin filtro de plan</SelectItem>
+                        {planes.filter(plan => plan.activo).map(plan => (
+                          <SelectItem key={plan.id} value={plan.id.toString()}>
+                            {plan.nombre} ({plan.cuotas} cuotas)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Products Count */}
+                  <div>
+                    <Label htmlFor="home_display_products_count">Cantidad de Productos</Label>
+                    <Input
+                      id="home_display_products_count"
+                      type="number"
+                      value={formData.home_display_products_count}
+                      onChange={(e) => handleInputChange('home_display_products_count', parseInt(e.target.value) || 12)}
+                      min={4}
+                      max={50}
+                      placeholder="12"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Category Filter */}
+                  <div>
+                    <Label htmlFor="home_display_category_filter">Filtrar por Categoría (Opcional)</Label>
+                    <Select 
+                      value={formData.home_display_category_filter?.toString() || "null"} 
+                      onValueChange={(value) => handleInputChange('home_display_category_filter', value === "null" ? null : parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todas las categorías" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="null">Todas las categorías</SelectItem>
+                        {categorias.map(categoria => (
+                          <SelectItem key={categoria.id} value={categoria.id.toString()}>
+                            {categoria.descripcion}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Brand Filter */}
+                  <div>
+                    <Label htmlFor="home_display_brand_filter">Filtrar por Marca (Opcional)</Label>
+                    <Select 
+                      value={formData.home_display_brand_filter?.toString() || "null"} 
+                      onValueChange={(value) => handleInputChange('home_display_brand_filter', value === "null" ? null : parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todas las marcas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="null">Todas las marcas</SelectItem>
+                        {marcas.map(marca => (
+                          <SelectItem key={marca.id} value={marca.id.toString()}>
+                            {marca.descripcion}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="home_display_featured_only"
+                    checked={formData.home_display_featured_only}
+                    onCheckedChange={(checked) => handleInputChange('home_display_featured_only', checked)}
+                  />
+                  <Label htmlFor="home_display_featured_only">Solo mostrar productos destacados</Label>
+                </div>
+                
+                {/* Preview Info */}
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-blue-900 mb-2">Vista previa de la configuración:</h4>
+                  <div className="text-sm text-blue-800">
+                    <p><strong>Plan seleccionado:</strong> {
+                      formData.home_display_plan_id 
+                        ? planes.find(p => p.id === formData.home_display_plan_id)?.nombre || 'Plan no encontrado'
+                        : 'Ningún plan específico (mostrará productos con precios base)'
+                    }</p>
+                    <p><strong>Cantidad de productos:</strong> {formData.home_display_products_count}</p>
+                    <p><strong>Categoría:</strong> {
+                      formData.home_display_category_filter 
+                        ? categorias.find(c => c.id === formData.home_display_category_filter)?.descripcion || 'Categoría no encontrada'
+                        : 'Todas las categorías'
+                    }</p>
+                    <p><strong>Marca:</strong> {
+                      formData.home_display_brand_filter 
+                        ? marcas.find(m => m.id === formData.home_display_brand_filter)?.descripcion || 'Marca no encontrada'
+                        : 'Todas las marcas'
+                    }</p>
+                    <p><strong>Solo destacados:</strong> {formData.home_display_featured_only ? 'Sí' : 'No'}</p>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
 
           </Tabs>
         </form>

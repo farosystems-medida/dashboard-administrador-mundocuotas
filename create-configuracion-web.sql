@@ -43,7 +43,14 @@ CREATE TABLE configuracion_web (
     
     -- Tipografías
     font_family_primary VARCHAR(100) DEFAULT 'Inter, sans-serif',
-    font_family_secondary VARCHAR(100) DEFAULT 'Roboto, sans-serif'
+    font_family_secondary VARCHAR(100) DEFAULT 'Roboto, sans-serif',
+    
+    -- Configuración Home Section  
+    home_display_plan_id INTEGER REFERENCES planes_financiacion(id),
+    home_display_products_count INTEGER DEFAULT 12,
+    home_display_category_filter INTEGER REFERENCES categorias(id),
+    home_display_brand_filter INTEGER REFERENCES marcas(id),
+    home_display_featured_only BOOLEAN DEFAULT false
 );
 
 -- Insertar configuración por defecto

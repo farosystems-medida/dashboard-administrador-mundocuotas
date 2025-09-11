@@ -171,4 +171,11 @@ export interface ConfiguracionWeb {
   // Tipografías
   font_family_primary: string
   font_family_secondary: string
+  
+  // Configuración Home Section
+  home_display_plan_id?: number
+  home_display_products_count: number
+  home_display_category_filter?: number
+  home_display_brand_filter?: number
+  home_display_featured_only: boolean
 } 

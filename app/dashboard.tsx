@@ -275,6 +275,9 @@ function Dashboard() {
               <ConfiguracionWebComponent
                 configuracionWeb={configuracionWeb}
                 onUpdateConfiguracionWeb={updateConfiguracionWeb}
+                planes={planes}
+                categorias={categorias}
+                marcas={marcas}
               />
             </TabsContent>
           </Tabs>
