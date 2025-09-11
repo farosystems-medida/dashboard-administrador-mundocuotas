@@ -673,8 +673,8 @@ export const ProductosSection = React.memo(({
                 categorias={categorias} 
                 marcas={marcas} 
                 lineas={lineas}
-                onProductoCreated={(nuevoProducto) => {
-                  // Recargar los productos después de crear uno nuevo
+                onMigrationCompleted={() => {
+                  // Recargar los productos solo cuando se cierre el popup después de cambios
                   window.location.reload()
                 }}
               />

@@ -16,6 +16,7 @@ interface ExcelMigratorProps {
   marcas: Marca[]
   lineas: Linea[]
   onProductoCreated?: (producto: Producto) => void
+  onMigrationCompleted?: () => void
 }
 
 interface ProductoExcel {
@@ -38,7 +39,18 @@ interface MigrationResult {
   data?: ProductoExcel
 }
 
-export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProductoCreated }: ExcelMigratorProps) => {
+// Función para parsear valores booleanos de Excel
+const parseExcelBoolean = (value: any): boolean => {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value !== 0
+  if (typeof value === 'string') {
+    const lowerValue = value.toLowerCase().trim()
+    return lowerValue === 'true' || lowerValue === '1' || lowerValue === 'yes' || lowerValue === 'sí'
+  }
+  return false
+}
+
+export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProductoCreated, onMigrationCompleted }: ExcelMigratorProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -50,23 +62,23 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
   const downloadTemplate = () => {
     const templateData = [
       {
-        descripcion: "Ejemplo: Notebook HP 15.6",
+        "Desc. artículo": "Ejemplo: Notebook HP 15.6",
         descripcion_detallada: "Ejemplo: Procesador Intel i5, 8GB RAM, 256GB SSD",
-        precio: 150000.00,
-        codigo: "NB-HP-001",
-        categoria: "Notebooks",
-        marca: "HP", 
-        linea: "Tecnología",
+        "Precio": 150000.00,
+        "Artículo": "NB-HP-001",
+        "Agrupación": "Notebooks",
+        "Marca": "HP", 
+        "Linea": "Tecnología",
         aplica_todos_plan: true
       },
       {
-        descripcion: "Ejemplo: Mouse Logitech",
+        "Desc. artículo": "Ejemplo: Mouse Logitech",
         descripcion_detallada: "Mouse óptico inalámbrico",
-        precio: 5000.00,
-        codigo: "MS-LG-001",
-        categoria: "Accesorios",
-        marca: "Logitech",
-        linea: "Tecnología", 
+        "Precio": 5000.00,
+        "Artículo": "MS-LG-001",
+        "Agrupación": "Accesorios",
+        "Marca": "Logitech",
+        "Linea": "Tecnología", 
         aplica_todos_plan: false
       }
     ]
@@ -94,14 +106,21 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
       const data = XLSX.utils.sheet_to_json(sheet) as any[]
 
       const processedData: ProductoExcel[] = data.map(row => ({
-        descripcion: String(row.descripcion || '').trim(),
+        // Descripción: acepta "descripcion" o "Desc. artículo"
+        descripcion: String(row.descripcion || row['Desc. artículo'] || '').trim(),
         descripcion_detallada: row.descripcion_detallada ? String(row.descripcion_detallada).trim() : undefined,
-        precio: parseFloat(row.precio) || 0,
-        codigo: row.codigo ? String(row.codigo).trim() : undefined,
-        categoria: String(row.categoria || '').trim(),
-        marca: String(row.marca || '').trim(),
-        linea: String(row.linea || '').trim(),
-        aplica_todos_plan: Boolean(row.aplica_todos_plan)
+        // Precio: acepta "precio" o "Precio"
+        precio: parseFloat(row.precio || row['Precio']) || 0,
+        // Código: acepta "codigo" o "Artículo"
+        codigo: row.codigo ? String(row.codigo).trim() : (row['Artículo'] ? String(row['Artículo']).trim() : undefined),
+        // Categoría: acepta "categoria" o "Agrupación"
+        categoria: String(row.categoria || row['Agrupación'] || '').trim(),
+        // Marca: acepta "marca" o "Marca"
+        marca: String(row.marca || row['Marca'] || '').trim(),
+        // Línea: acepta "linea" o "Linea"
+        linea: String(row.linea || row['Linea'] || '').trim(),
+        // aplica_todos_plan: convertir correctamente true/false desde Excel
+        aplica_todos_plan: parseExcelBoolean(row.aplica_todos_plan)
       }))
 
       setPreviewData(processedData.slice(0, 5)) // Mostrar solo las primeras 5 filas como preview
@@ -175,14 +194,21 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
 
   const createDefaultAssociations = async (productoId: number, aplicaTodosPlan: boolean) => {
     try {
+      console.log(`🔄 Creando asociaciones por defecto para producto ${productoId}, aplica_todos_plan: ${aplicaTodosPlan}`)
+      
       if (aplicaTodosPlan) {
         // Obtener todos los planes activos
         const { data: planesActivos, error } = await supabase
           .from('planes_financiacion')
-          .select('id')
+          .select('id, nombre')
           .eq('activo', true)
 
-        if (error) throw error
+        if (error) {
+          console.error('❌ Error obteniendo planes activos:', error)
+          throw error
+        }
+
+        console.log(`📋 Planes activos encontrados: ${planesActivos?.length || 0}`, planesActivos)
 
         if (planesActivos && planesActivos.length > 0) {
           const associations = planesActivos.map(plan => ({
@@ -191,15 +217,28 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
             activo: true
           }))
 
-          const { error: insertError } = await supabase
+          console.log(`📝 Creando ${associations.length} asociaciones:`, associations)
+
+          const { data, error: insertError } = await supabase
             .from('producto_planes_default')
             .insert(associations)
+            .select()
 
-          if (insertError) throw insertError
+          if (insertError) {
+            console.error('❌ Error insertando asociaciones:', insertError)
+            throw insertError
+          }
+
+          console.log(`✅ Asociaciones creadas exitosamente:`, data)
+        } else {
+          console.log('⚠️ No hay planes activos para asociar')
         }
+      } else {
+        console.log('ℹ️ Producto no aplica a todos los planes, no se crean asociaciones')
       }
     } catch (error) {
-      console.error('Error creating default associations:', error)
+      console.error('❌ Error general creando asociaciones por defecto:', error)
+      throw error // Re-lanzar el error para que se capture en el nivel superior
     }
   }
 
@@ -227,14 +266,20 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
 
         try {
           const productoData: ProductoExcel = {
-            descripcion: String(rowData.descripcion || '').trim(),
+            // Descripción: acepta "descripcion" o "Desc. artículo"
+            descripcion: String(rowData.descripcion || rowData['Desc. artículo'] || '').trim(),
             descripcion_detallada: rowData.descripcion_detallada ? String(rowData.descripcion_detallada).trim() : undefined,
-            precio: parseFloat(rowData.precio) || 0,
-            codigo: rowData.codigo ? String(rowData.codigo).trim() : undefined,
-            categoria: String(rowData.categoria || '').trim(),
-            marca: String(rowData.marca || '').trim(),
-            linea: String(rowData.linea || '').trim(),
-            aplica_todos_plan: Boolean(rowData.aplica_todos_plan)
+            // Precio: acepta "precio" o "Precio"
+            precio: parseFloat(rowData.precio || rowData['Precio']) || 0,
+            // Código: acepta "codigo" o "Artículo"
+            codigo: rowData.codigo ? String(rowData.codigo).trim() : (rowData['Artículo'] ? String(rowData['Artículo']).trim() : undefined),
+            // Categoría: acepta "categoria" o "Agrupación"
+            categoria: String(rowData.categoria || rowData['Agrupación'] || '').trim(),
+            // Marca: acepta "marca" o "Marca"
+            marca: String(rowData.marca || rowData['Marca'] || '').trim(),
+            // Línea: acepta "linea" o "Linea"
+            linea: String(rowData.linea || rowData['Linea'] || '').trim(),
+            aplica_todos_plan: parseExcelBoolean(rowData.aplica_todos_plan)
           }
 
           // Validaciones básicas
@@ -299,33 +344,56 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
           }
 
           if (accionARealizar === 'update_by_codigo') {
-            // Actualizar solo la descripción del producto encontrado por código
-            try {
-              const { error } = await supabase
-                .from('productos')
-                .update({ descripcion: productoData.descripcion })
-                .eq('id', productoExistente.id)
-
-              if (error) throw error
-
+            // Verificar si la descripción realmente es diferente
+            const descripcionActual = productoExistente.descripcion.trim()
+            const descripcionNueva = productoData.descripcion.trim()
+            
+            if (descripcionActual.toLowerCase() === descripcionNueva.toLowerCase()) {
+              // La descripción es igual, no hacer nada
               results.push({
                 row: rowNumber,
                 descripcion: productoData.descripcion,
                 codigo: productoData.codigo,
-                status: 'updated',
-                message: `Descripción actualizada para código "${productoData.codigo}" (ID: ${productoExistente.id})`,
+                status: 'skipped',
+                message: `Producto con código "${productoData.codigo}" ya tiene la misma descripción (ID: ${productoExistente.id})`,
                 data: productoData
               })
+            } else {
+              // La descripción es diferente, actualizar SOLO la descripción
+              try {
+                console.log(`🔄 Actualizando SOLO descripción para producto ${productoExistente.id}:`)
+                console.log(`   Descripción actual: "${descripcionActual}"`)
+                console.log(`   Descripción nueva: "${descripcionNueva}"`)
+                
+                const { error } = await supabase
+                  .from('productos')
+                  .update({ descripcion: productoData.descripcion })
+                  .eq('id', productoExistente.id)
 
-            } catch (error: any) {
-              results.push({
-                row: rowNumber,
-                descripcion: productoData.descripcion,
-                codigo: productoData.codigo,
-                status: 'error',
-                message: `Error actualizando producto: ${error.message}`,
-                data: productoData
-              })
+                if (error) throw error
+
+                results.push({
+                  row: rowNumber,
+                  descripcion: productoData.descripcion,
+                  codigo: productoData.codigo,
+                  status: 'updated',
+                  message: `Descripción actualizada para código "${productoData.codigo}" (ID: ${productoExistente.id}). De: "${descripcionActual}" a: "${descripcionNueva}"`,
+                  data: productoData
+                })
+
+                console.log(`✅ Descripción actualizada exitosamente`)
+
+              } catch (error: any) {
+                console.error(`❌ Error actualizando descripción:`, error)
+                results.push({
+                  row: rowNumber,
+                  descripcion: productoData.descripcion,
+                  codigo: productoData.codigo,
+                  status: 'error',
+                  message: `Error actualizando descripción: ${error.message}`,
+                  data: productoData
+                })
+              }
             }
             setProgress((i + 1) / totalRows * 100)
             continue
@@ -369,17 +437,31 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
             activo: true
           }
 
+          console.log(`🆕 Creando producto:`, nuevoProducto)
+
           const { data: productoCreado, error } = await supabase
             .from('productos')
             .insert([nuevoProducto])
             .select()
             .single()
 
-          if (error) throw error
+          if (error) {
+            console.error(`❌ Error creando producto:`, error)
+            throw error
+          }
+
+          console.log(`✅ Producto creado exitosamente:`, productoCreado)
 
           // Crear asociaciones por defecto si aplica_todos_plan es true
+          let associationMessage = ''
           if (productoData.aplica_todos_plan) {
-            await createDefaultAssociations(productoCreado.id, true)
+            try {
+              await createDefaultAssociations(productoCreado.id, true)
+              associationMessage = ' con asociaciones a todos los planes'
+            } catch (associationError) {
+              console.error(`❌ Error creando asociaciones para producto ${productoCreado.id}:`, associationError)
+              associationMessage = ' (ERROR creando asociaciones a planes)'
+            }
           }
 
           results.push({
@@ -387,14 +469,11 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
             descripcion: productoData.descripcion,
             codigo: productoData.codigo,
             status: 'created',
-            message: `Producto creado exitosamente (ID: ${productoCreado.id})${productoData.codigo ? ` con código "${productoData.codigo}"` : ''}`,
+            message: `Producto creado exitosamente (ID: ${productoCreado.id})${productoData.codigo ? ` con código "${productoData.codigo}"` : ''}${associationMessage}`,
             data: productoData
           })
 
-          // Notificar al componente padre si se proporciona callback
-          if (onProductoCreated) {
-            onProductoCreated(productoCreado)
-          }
+          // No notificar durante la migración - solo al final cuando se cierre el popup
 
         } catch (error: any) {
           results.push({
@@ -447,8 +526,26 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
     setShowResults(false)
   }
 
+  const handleCloseDialog = () => {
+    const hasChanges = results.some(r => r.status === 'created' || r.status === 'updated')
+    
+    setIsOpen(false)
+    resetMigration()
+    
+    // Solo ejecutar callback si hubo cambios en la migración
+    if (hasChanges && onMigrationCompleted) {
+      onMigrationCompleted()
+    }
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        handleCloseDialog()
+      } else {
+        setIsOpen(true)
+      }
+    }}>
       <DialogTrigger asChild>
         <Button>
           <FileSpreadsheet className="h-4 w-4 mr-2" />
@@ -466,9 +563,22 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 className="font-medium text-blue-800 mb-2">Instrucciones:</h3>
             <ul className="text-sm text-blue-700 space-y-1">
-              <li>• El archivo debe tener las columnas: descripcion, descripcion_detallada, precio, codigo, categoria, marca, linea, aplica_todos_plan</li>
+              <li>• <strong>Columnas requeridas:</strong> descripción, precio, código, categoría, marca, línea, aplica_todos_plan</li>
+              <li>• <strong>Nombres alternativos aceptados:</strong></li>
+              <li>&nbsp;&nbsp;- Descripción: "descripcion" o "Desc. artículo"</li>
+              <li>&nbsp;&nbsp;- Código: "codigo" o "Artículo"</li>
+              <li>&nbsp;&nbsp;- Precio: "precio" o "Precio"</li>
+              <li>&nbsp;&nbsp;- Categoría: "categoria" o "Agrupación"</li>
+              <li>&nbsp;&nbsp;- Marca: "marca" o "Marca"</li>
+              <li>&nbsp;&nbsp;- Línea: "linea" o "Linea"</li>
               <li>• <strong>Búsqueda inteligente:</strong> Primero busca por código, luego por descripción</li>
-              <li>• <strong>Si encuentra por código:</strong> Actualiza solo la descripción del producto existente</li>
+              <li>• <strong>Si encuentra por código:</strong> 
+                <ul className="ml-4 mt-1">
+                  <li>- Si la descripción es diferente: Actualiza SOLO la descripción</li>
+                  <li>- Si la descripción es igual: Se omite (sin cambios)</li>
+                  <li>- <em>Otros campos (marca, precio, etc.) NO se modifican</em></li>
+                </ul>
+              </li>
               <li>• <strong>Si encuentra por descripción:</strong> Se omite (ya existe)</li>
               <li>• <strong>Si no encuentra:</strong> Crea un nuevo producto</li>
               <li>• Las categorías, marcas y líneas nuevas se crearán automáticamente</li>
@@ -592,9 +702,14 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium">Resultados de la Migración</h3>
-                <Button variant="outline" onClick={resetMigration}>
-                  Nueva Migración
-                </Button>
+                <div className="space-x-2">
+                  <Button variant="outline" onClick={resetMigration}>
+                    Nueva Migración
+                  </Button>
+                  <Button onClick={handleCloseDialog}>
+                    Cerrar
+                  </Button>
+                </div>
               </div>
 
               {/* Resumen */}
