@@ -36,6 +36,7 @@ export interface Producto {
   descripcion: string
   descripcion_detallada?: string
   precio: number
+  codigo?: string
   imagen?: string
   imagen_2?: string
   imagen_3?: string

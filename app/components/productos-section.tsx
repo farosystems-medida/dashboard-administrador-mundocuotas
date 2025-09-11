@@ -15,13 +15,16 @@ import { ImageUpload } from "./image-upload"
 import { ExcelGenerator } from "./excel-generator"
 import { PriceUpdater } from "./price-updater"
 import { ImageImporter } from "./image-importer"
-import { Producto, Categoria, Marca } from "@/lib/supabase"
+import { ExcelMigrator } from "./excel-migrator"
+import { CodigoMigrator } from "./codigo-migrator"
+import { Producto, Categoria, Marca, Linea } from "@/lib/supabase"
 import { supabase } from "@/lib/supabase"
 
 interface ProductosSectionProps {
   productos: Producto[]
   categorias: Categoria[]
   marcas: Marca[]
+  lineas: Linea[]
   onCreateProducto: (producto: Omit<Producto, 'id' | 'created_at' | 'categoria' | 'marca'>) => Promise<Producto | undefined>
   onUpdateProducto: (id: number, producto: Partial<Producto>) => Promise<Producto | undefined>
   onDeleteProducto: (id: number) => Promise<void>
@@ -31,6 +34,7 @@ export const ProductosSection = React.memo(({
   productos,
   categorias,
   marcas,
+  lineas,
   onCreateProducto,
   onUpdateProducto,
   onDeleteProducto
@@ -53,6 +57,7 @@ export const ProductosSection = React.memo(({
     descripcion: "",
     descripcion_detallada: "",
     precio: "",
+    codigo: "",
     fk_id_categoria: undefined as string | undefined,
     fk_id_marca: undefined as string | undefined,
     imagenes: [] as string[],
@@ -78,13 +83,15 @@ export const ProductosSection = React.memo(({
         const categoria = producto.categoria?.descripcion?.toLowerCase() || ""
         const marca = producto.marca?.descripcion?.toLowerCase() || ""
         const precio = producto.precio?.toString() || ""
+        const codigo = producto.codigo?.toLowerCase() || ""
         
         return (
           descripcion.includes(term) ||
           descripcionDetallada.includes(term) ||
           categoria.includes(term) ||
           marca.includes(term) ||
-          precio.includes(term)
+          precio.includes(term) ||
+          codigo.includes(term)
         )
       })
     }
@@ -333,6 +340,7 @@ export const ProductosSection = React.memo(({
       descripcion: "",
       descripcion_detallada: "",
       precio: "",
+      codigo: "",
       fk_id_categoria: undefined,
       fk_id_marca: undefined,
       imagenes: [],
@@ -363,6 +371,7 @@ export const ProductosSection = React.memo(({
       descripcion: producto.descripcion || "",
       descripcion_detallada: producto.descripcion_detallada || "",
       precio: producto.precio?.toString() || "",
+      codigo: producto.codigo || "",
       fk_id_categoria: producto.fk_id_categoria?.toString(),
       fk_id_marca: producto.fk_id_marca?.toString(),
       imagenes: productImages,
@@ -434,6 +443,7 @@ export const ProductosSection = React.memo(({
         descripcion: formData.descripcion,
         descripcion_detallada: formData.descripcion_detallada || undefined,
         precio: parseFloat(formData.precio),
+        codigo: formData.codigo?.trim() || undefined,
         fk_id_categoria: formData.fk_id_categoria ? parseInt(formData.fk_id_categoria) : undefined,
         fk_id_marca: formData.fk_id_marca ? parseInt(formData.fk_id_marca) : undefined,
         // Mapear el array de imágenes a los campos individuales de la base de datos
@@ -651,6 +661,23 @@ export const ProductosSection = React.memo(({
           <ExcelGenerator productos={productos} />
           <PriceUpdater productos={productos} onUpdateProducto={onUpdateProducto} />
               <ImageImporter productos={productos} onUpdateProducto={onUpdateProducto} />
+              <CodigoMigrator 
+                productos={productos}
+                onProductoUpdated={() => {
+                  // Recargar los productos después de actualizar códigos
+                  window.location.reload()
+                }}
+              />
+              <ExcelMigrator 
+                productos={productos} 
+                categorias={categorias} 
+                marcas={marcas} 
+                lineas={lineas}
+                onProductoCreated={(nuevoProducto) => {
+                  // Recargar los productos después de crear uno nuevo
+                  window.location.reload()
+                }}
+              />
                                               <Dialog open={isDialogOpen} onOpenChange={(open) => {
                     if (open) {
                       setIsDialogOpen(true)
@@ -690,7 +717,7 @@ export const ProductosSection = React.memo(({
                         </Button>
                       </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="descripcion">Descripción</Label>
                   <Input
@@ -698,6 +725,16 @@ export const ProductosSection = React.memo(({
                     value={formData.descripcion}
                     onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                     required
+                    disabled={isCreating}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="codigo">Código</Label>
+                  <Input
+                    id="codigo"
+                    value={formData.codigo}
+                    onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
+                    placeholder="Código del producto"
                     disabled={isCreating}
                   />
                 </div>
@@ -1315,7 +1352,7 @@ export const ProductosSection = React.memo(({
           <Table>
             <TableHeader>
                           <TableRow>
-              <TableHead>ID</TableHead>
+              <TableHead>Código</TableHead>
               <TableHead>Descripción</TableHead>
               <TableHead>Desc. Det.</TableHead>
               <TableHead>Imágenes</TableHead>
@@ -1331,7 +1368,23 @@ export const ProductosSection = React.memo(({
             <TableBody>
                   {currentProductos.map((producto) => (
                 <TableRow key={producto.id}>
-                  <TableCell>{producto.id}</TableCell>
+                  <TableCell>
+                    {producto.codigo ? (
+                      <span 
+                        className="font-mono text-sm bg-gray-100 px-2 py-1 rounded"
+                        title={`ID: ${producto.id}`}
+                      >
+                        {producto.codigo}
+                      </span>
+                    ) : (
+                      <span 
+                        className="text-gray-400 text-xs"
+                        title={`ID: ${producto.id}`}
+                      >
+                        Sin código
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="font-medium">{producto.descripcion}</TableCell>
                   <TableCell>
                     {producto.descripcion_detallada ? (
@@ -1480,7 +1533,17 @@ export const ProductosSection = React.memo(({
                       <h3 className="font-medium text-sm line-clamp-2 flex-1">
                         {producto.descripcion}
                       </h3>
-                      <span className="text-xs text-gray-500 ml-2">#{producto.id}</span>
+                      <span className="text-xs text-gray-500 ml-2">
+                        {producto.codigo ? (
+                          <span className="font-mono" title={`ID: ${producto.id}`}>
+                            {producto.codigo}
+                          </span>
+                        ) : (
+                          <span title={`ID: ${producto.id}`}>
+                            #{producto.id}
+                          </span>
+                        )}
+                      </span>
                     </div>
                     
                     <div className="text-lg font-bold text-green-600">

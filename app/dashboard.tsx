@@ -176,6 +176,7 @@ function Dashboard() {
             productos={productos} 
             categorias={categorias}
             marcas={marcas}
+            lineas={lineas}
             onCreateProducto={createProducto}
             onUpdateProducto={updateProducto}
             onDeleteProducto={deleteProducto}
