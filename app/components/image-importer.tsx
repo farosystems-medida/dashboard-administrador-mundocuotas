@@ -15,8 +15,8 @@ interface ImageImporterProps {
 }
 
 interface ImportRow {
-  ID: string
-  Descripción: string
+  Codigo: string
+  Descripción?: string
   imagen?: string
   imagen_2?: string
   imagen_3?: string
@@ -25,10 +25,14 @@ interface ImportRow {
 }
 
 interface ProcessedRow {
-  id: number
+  codigo: string
+  id: number | null
   descripcion: string
   imagenes: string[]
   found: boolean
+  hasExistingImages: boolean
+  status: 'success' | 'skipped' | 'error'
+  message: string
 }
 
 export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProps) {
@@ -100,7 +104,8 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
           const globalIndex = startIndex + i
           setProgress(((globalIndex + 1) / processedRows.length) * 100)
           
-          if (row.found) {
+          // Solo procesar productos que necesiten imágenes (status: 'success')
+          if (row.status === 'success' && row.id) {
             try {
               const imagenes = row.imagenes.filter(img => img && img.trim() !== '')
               const updateData: any = {}
@@ -112,13 +117,20 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
               if (imagenes[3]) updateData.imagen_4 = imagenes[3]
               if (imagenes[4]) updateData.imagen_5 = imagenes[4]
               
+              console.log(`Actualizando producto código "${row.codigo}" con ${imagenes.length} imágenes`)
               await onUpdateProducto(row.id, updateData)
               success++
-              row.found = true
+              row.status = 'success'
+              row.message = `${imagenes.length} imagen(es) cargada(s) exitosamente`
             } catch (err) {
+              console.error(`Error actualizando producto código "${row.codigo}":`, err)
               errors++
-              row.found = false
+              row.status = 'error'
+              row.message = `Error al actualizar: ${err instanceof Error ? err.message : 'Error desconocido'}`
             }
+          } else if (row.status === 'skipped') {
+            // Los productos omitidos no cuentan como errores
+            success++
           } else {
             errors++
           }
@@ -171,20 +183,91 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
 
   const processRows = async (data: ImportRow[]): Promise<ProcessedRow[]> => {
     return data.map(row => {
-      const id = parseInt(row.ID)
-      const producto = productos.find(p => p.id === id)
+      const codigo = row.Codigo?.toString().trim()
       
+      if (!codigo) {
+        return {
+          codigo: row.Codigo || 'N/A',
+          id: null,
+          descripcion: row.Descripción || 'Sin descripción',
+          imagenes: [],
+          found: false,
+          hasExistingImages: false,
+          status: 'error' as const,
+          message: 'Código vacío o inválido'
+        }
+      }
+
+      // Buscar producto por código
+      const producto = productos.find(p => p.codigo?.toString().trim() === codigo)
+      
+      if (!producto) {
+        return {
+          codigo,
+          id: null,
+          descripcion: row.Descripción || 'Producto no encontrado',
+          imagenes: [],
+          found: false,
+          hasExistingImages: false,
+          status: 'error' as const,
+          message: `Producto con código "${codigo}" no encontrado`
+        }
+      }
+
+      // Verificar si el producto ya tiene imágenes
+      const hasExistingImages = !!(
+        producto.imagen || 
+        producto.imagen_2 || 
+        producto.imagen_3 || 
+        producto.imagen_4 || 
+        producto.imagen_5
+      )
+
+      const imagenes = [
+        row.imagen || '',
+        row.imagen_2 || '',
+        row.imagen_3 || '',
+        row.imagen_4 || '',
+        row.imagen_5 || ''
+      ]
+
+      const hasNewImages = imagenes.some(img => img && img.trim() !== '')
+
+      if (hasExistingImages) {
+        return {
+          codigo,
+          id: producto.id,
+          descripcion: producto.descripcion,
+          imagenes,
+          found: true,
+          hasExistingImages: true,
+          status: 'skipped' as const,
+          message: 'Ya tiene imágenes - omitido'
+        }
+      }
+
+      if (!hasNewImages) {
+        return {
+          codigo,
+          id: producto.id,
+          descripcion: producto.descripcion,
+          imagenes,
+          found: true,
+          hasExistingImages: false,
+          status: 'error' as const,
+          message: 'No se proporcionaron imágenes para cargar'
+        }
+      }
+
       return {
-        id,
-        descripcion: row.Descripción,
-        imagenes: [
-          row.imagen || '',
-          row.imagen_2 || '',
-          row.imagen_3 || '',
-          row.imagen_4 || '',
-          row.imagen_5 || ''
-        ],
-        found: !!producto
+        codigo,
+        id: producto.id,
+        descripcion: producto.descripcion,
+        imagenes,
+        found: true,
+        hasExistingImages: false,
+        status: 'success' as const,
+        message: 'Listo para procesar'
       }
     })
   }
@@ -237,6 +320,16 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
             <>
               <div className="space-y-2">
                 <Label htmlFor="file-input">Seleccionar archivo</Label>
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                  <strong className="text-blue-800">Formato del Excel requerido:</strong>
+                  <div className="mt-1 text-blue-700">
+                    <div><strong>Codigo</strong> - Código del producto (requerido)</div>
+                    <div><strong>imagen, imagen_2, imagen_3, imagen_4, imagen_5</strong> - URLs de imágenes (opcional)</div>
+                  </div>
+                  <div className="mt-2 text-xs text-blue-600">
+                    ⚠️ Solo se cargarán imágenes en productos que NO tengan imágenes previamente
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   <Input
                     id="file-input"
@@ -316,22 +409,29 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
                   <div
                     key={index}
                     className={`p-2 rounded border text-sm ${
-                      row.found ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                      row.status === 'success' ? 'bg-green-50 border-green-200' : 
+                      row.status === 'skipped' ? 'bg-yellow-50 border-yellow-200' : 
+                      'bg-red-50 border-red-200'
                     }`}
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <strong>ID {row.id}</strong> - {row.descripcion}
+                        <strong>Código: {row.codigo}</strong> - {row.descripcion}
+                        <div className="text-xs text-gray-600 mt-1">{row.message}</div>
                       </div>
-                      {row.found ? (
+                      {row.status === 'success' ? (
                         <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : row.status === 'skipped' ? (
+                        <div className="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">
+                          OMITIDO
+                        </div>
                       ) : (
                         <AlertCircle className="h-4 w-4 text-red-600" />
                       )}
                     </div>
-                    {!row.found && (
-                      <div className="text-red-600 text-xs mt-1">
-                        Producto no encontrado
+                    {row.imagenes && row.imagenes.length > 0 && (
+                      <div className="mt-1 text-xs text-gray-600">
+                        {row.imagenes.filter(img => img && img.trim()).length} imagen(es) a procesar
                       </div>
                     )}
                   </div>
