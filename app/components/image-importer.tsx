@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Upload, FileSpreadsheet, FileText, CheckCircle, AlertCircle, X } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Upload, FileSpreadsheet, FileText, CheckCircle, AlertCircle, X, Download, Search } from "lucide-react"
 import * as XLSX from 'xlsx'
 
 interface ImageImporterProps {
@@ -49,6 +51,11 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
     details: ProcessedRow[]
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  
+  // Estados para generar Excel
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set())
+  const [searchTerm, setSearchTerm] = useState('')
+  const [activeTab, setActiveTab] = useState('import')
   
   // Configuración de lotes
   const BATCH_SIZE = 10 // Procesar 10 productos por lote
@@ -272,6 +279,79 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
     })
   }
 
+  // Funciones para generar Excel
+  const filteredProductos = productos.filter(producto => 
+    !searchTerm || 
+    producto.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    producto.codigo?.toString().toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const toggleProductSelection = (productId: number) => {
+    const newSelected = new Set(selectedProductIds)
+    if (newSelected.has(productId)) {
+      newSelected.delete(productId)
+    } else {
+      newSelected.add(productId)
+    }
+    setSelectedProductIds(newSelected)
+  }
+
+  const toggleAllProducts = () => {
+    if (selectedProductIds.size === filteredProductos.length) {
+      setSelectedProductIds(new Set())
+    } else {
+      setSelectedProductIds(new Set(filteredProductos.map(p => p.id)))
+    }
+  }
+
+  const generateExcel = () => {
+    const selectedProducts = productos.filter(p => selectedProductIds.has(p.id))
+    
+    const excelData = selectedProducts.map(producto => ({
+      Codigo: producto.codigo || '',
+      Descripcion: producto.descripcion || '',
+      Precio: producto.precio || 0,
+      Categoria: producto.categoria?.descripcion || '',
+      Marca: producto.marca?.descripcion || '',
+      Destacado: producto.destacado ? 'SI' : 'NO',
+      Activo: producto.activo ? 'SI' : 'NO',
+      'Tiene Stock': producto.tiene_stock ? 'SI' : 'NO',
+      imagen: '',
+      imagen_2: '',
+      imagen_3: '',
+      imagen_4: '',
+      imagen_5: ''
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(excelData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Productos')
+    
+    // Ajustar ancho de columnas
+    const colWidths = [
+      { wch: 12 }, // Codigo
+      { wch: 40 }, // Descripcion
+      { wch: 12 }, // Precio
+      { wch: 20 }, // Categoria
+      { wch: 20 }, // Marca
+      { wch: 10 }, // Destacado
+      { wch: 10 }, // Activo
+      { wch: 12 }, // Tiene Stock
+      { wch: 50 }, // imagen
+      { wch: 50 }, // imagen_2
+      { wch: 50 }, // imagen_3
+      { wch: 50 }, // imagen_4
+      { wch: 50 }  // imagen_5
+    ]
+    ws['!cols'] = colWidths
+
+    const fileName = `productos_imagenes_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    
+    setSelectedProductIds(new Set())
+    setSearchTerm('')
+  }
+
   const resetForm = () => {
     setFile(null)
     setError(null)
@@ -279,6 +359,8 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
     setProgress(0)
     setCurrentBatch(0)
     setTotalBatches(0)
+    setSelectedProductIds(new Set())
+    setSearchTerm('')
     const fileInput = document.getElementById('file-input') as HTMLInputElement
     if (fileInput) fileInput.value = ''
   }
@@ -305,21 +387,27 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            Importador de Imágenes
+            Gestor de Imágenes
           </DialogTitle>
           <div id="image-importer-description" className="sr-only">
-            Importa URLs de imágenes desde archivos XLSX o CSV para actualizar productos existentes
-          </div>
-          <div className="text-sm text-gray-600">
-            Los productos se procesan en lotes de {BATCH_SIZE} para evitar que la página se congele
+            Genera un Excel con productos seleccionados o importa URLs de imágenes
           </div>
         </DialogHeader>
         
-        <div className="space-y-4">
-          {!results && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="file-input">Seleccionar archivo</Label>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="import">Importar Imágenes</TabsTrigger>
+            <TabsTrigger value="generate">Generar Excel</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="import" className="space-y-4">
+            <div className="text-sm text-gray-600">
+              Los productos se procesan en lotes de {BATCH_SIZE} para evitar que la página se congele
+            </div>
+            {!results && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="file-input">Seleccionar archivo</Label>
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
                   <strong className="text-blue-800">Formato del Excel requerido:</strong>
                   <div className="mt-1 text-blue-700">
@@ -443,7 +531,93 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
               </Button>
             </div>
           )}
-        </div>
+          </TabsContent>
+          
+          <TabsContent value="generate" className="space-y-4">
+            <div className="space-y-4">
+              <div>
+                <Label>Buscar productos</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Buscar por descripción o código..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    checked={selectedProductIds.size > 0 && selectedProductIds.size === filteredProductos.length}
+                    onCheckedChange={toggleAllProducts}
+                    id="select-all"
+                  />
+                  <Label htmlFor="select-all" className="text-sm">
+                    Seleccionar todos ({filteredProductos.length} productos)
+                  </Label>
+                </div>
+                <div className="text-sm text-gray-600">
+                  {selectedProductIds.size} productos seleccionados
+                </div>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto border rounded-lg">
+                <div className="space-y-1 p-2">
+                  {filteredProductos.map((producto) => (
+                    <div
+                      key={producto.id}
+                      className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded"
+                    >
+                      <Checkbox
+                        checked={selectedProductIds.has(producto.id)}
+                        onCheckedChange={() => toggleProductSelection(producto.id)}
+                        id={`producto-${producto.id}`}
+                      />
+                      <Label
+                        htmlFor={`producto-${producto.id}`}
+                        className="flex-1 cursor-pointer text-sm"
+                      >
+                        <div className="font-medium">{producto.descripcion}</div>
+                        <div className="text-xs text-gray-500">
+                          Código: {producto.codigo || 'Sin código'} | 
+                          Precio: ${producto.precio || 0} | 
+                          {producto.categoria?.descripcion || 'Sin categoría'}
+                        </div>
+                      </Label>
+                    </div>
+                  ))}
+                  {filteredProductos.length === 0 && (
+                    <div className="text-center text-gray-500 py-4">
+                      No se encontraron productos
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                <div className="font-medium text-green-800 mb-2">Excel generado incluirá:</div>
+                <ul className="text-green-700 space-y-1">
+                  <li>• Todos los datos del producto (código, descripción, precio, etc.)</li>
+                  <li>• Campos de imágenes vacíos (imagen, imagen_2, imagen_3, imagen_4, imagen_5)</li>
+                  <li>• El usuario debe completar las URLs de imágenes</li>
+                  <li>• Luego usar la pestaña "Importar" para actualizar los productos</li>
+                </ul>
+              </div>
+
+              <Button
+                onClick={generateExcel}
+                disabled={selectedProductIds.size === 0}
+                className="w-full"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Generar Excel ({selectedProductIds.size} productos)
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   )
