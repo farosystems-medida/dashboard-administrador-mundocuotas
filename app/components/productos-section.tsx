@@ -12,8 +12,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { ImageUpload } from "./image-upload"
-import { ExcelGenerator } from "./excel-generator"
-import { PriceUpdater } from "./price-updater"
 import { ImageImporter } from "./image-importer"
 import { ExcelMigrator } from "./excel-migrator"
 import { CodigoMigrator } from "./codigo-migrator"
@@ -662,8 +660,6 @@ export const ProductosSection = React.memo(({
               <Grid className="h-4 w-4" />
             </Button>
           </div>
-          <ExcelGenerator productos={productos} />
-          <PriceUpdater productos={productos} onUpdateProducto={onUpdateProducto} />
               <ImageImporter productos={productos} onUpdateProducto={onUpdateProducto} />
               <CodigoMigrator 
                 productos={productos}

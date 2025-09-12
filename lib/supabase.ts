@@ -104,6 +104,39 @@ export interface ProductoPlanDefault {
   plan?: PlanFinanciacion
 }
 
+// Tipos para combos
+export interface Combo {
+  id: number
+  nombre: string
+  descripcion?: string
+  fecha_vigencia_inicio?: string
+  fecha_vigencia_fin?: string
+  descuento_porcentaje: number
+  precio_combo: number
+  precio_original: number
+  imagen?: string
+  imagen_2?: string
+  imagen_3?: string
+  imagen_4?: string
+  imagen_5?: string
+  activo: boolean
+  created_at: string
+  updated_at: string
+  productos?: ComboProducto[]
+}
+
+// Tipos para la relación combo-productos
+export interface ComboProducto {
+  id: number
+  fk_id_combo: number
+  fk_id_producto: number
+  cantidad: number
+  precio_unitario?: number
+  created_at: string
+  producto?: Producto
+  combo?: Combo
+}
+
 // Tipo para las zonas
 export interface Zona {
   id: number

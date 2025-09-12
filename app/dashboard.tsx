@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { AppSidebar } from "./components/app-sidebar"
 import { DashboardSection } from "./components/dashboard-section"
 import { ProductosSection } from "./components/productos-section"
+import { CombosSection } from "./components/combos-section"
 import { LineasSection } from "./components/lineas-section"
 import { CategoriasSection } from "./components/categorias-section"
 import { MarcasSection } from "./components/marcas-section"
@@ -131,6 +132,8 @@ function Dashboard() {
     switch (activeSection) {
       case "productos":
         return "Productos"
+      case "combos":
+        return "Combos"
       case "lineas":
         return "Líneas"
       case "categorias":
@@ -180,6 +183,12 @@ function Dashboard() {
             onCreateProducto={createProducto}
             onUpdateProducto={updateProducto}
             onDeleteProducto={deleteProducto}
+          />
+        )
+      case "combos":
+        return (
+          <CombosSection 
+            productos={productos}
           />
         )
       case "lineas":
