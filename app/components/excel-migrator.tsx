@@ -21,7 +21,6 @@ interface ExcelMigratorProps {
 
 interface ProductoExcel {
   descripcion: string
-  descripcion_detallada?: string
   precio: number
   codigo?: string
   categoria: string
@@ -63,7 +62,6 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
     const templateData = [
       {
         "Desc. artículo": "Ejemplo: Notebook HP 15.6",
-        descripcion_detallada: "Ejemplo: Procesador Intel i5, 8GB RAM, 256GB SSD",
         "Precio": 150000.00,
         "Artículo": "NB-HP-001",
         "Agrupación": "Notebooks",
@@ -73,7 +71,6 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
       },
       {
         "Desc. artículo": "Ejemplo: Mouse Logitech",
-        descripcion_detallada: "Mouse óptico inalámbrico",
         "Precio": 5000.00,
         "Artículo": "MS-LG-001",
         "Agrupación": "Accesorios",
@@ -108,7 +105,6 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
       const processedData: ProductoExcel[] = data.map(row => ({
         // Descripción: acepta "descripcion" o "Desc. artículo"
         descripcion: String(row.descripcion || row['Desc. artículo'] || '').trim(),
-        descripcion_detallada: row.descripcion_detallada ? String(row.descripcion_detallada).trim() : undefined,
         // Precio: acepta "precio" o "Precio"
         precio: parseFloat(row.precio || row['Precio']) || 0,
         // Código: acepta "codigo" o "Artículo"
@@ -268,7 +264,6 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
           const productoData: ProductoExcel = {
             // Descripción: acepta "descripcion" o "Desc. artículo"
             descripcion: String(rowData.descripcion || rowData['Desc. artículo'] || '').trim(),
-            descripcion_detallada: rowData.descripcion_detallada ? String(rowData.descripcion_detallada).trim() : undefined,
             // Precio: acepta "precio" o "Precio"
             precio: parseFloat(rowData.precio || rowData['Precio']) || 0,
             // Código: acepta "codigo" o "Artículo"
@@ -344,30 +339,48 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
           }
 
           if (accionARealizar === 'update_by_codigo') {
-            // Verificar si la descripción realmente es diferente
+            // Verificar si la descripción o el precio son diferentes
             const descripcionActual = productoExistente.descripcion.trim()
             const descripcionNueva = productoData.descripcion.trim()
+            const precioActual = productoExistente.precio
+            const precioNuevo = productoData.precio
             
-            if (descripcionActual.toLowerCase() === descripcionNueva.toLowerCase()) {
-              // La descripción es igual, no hacer nada
+            const descripcionDiferente = descripcionActual.toLowerCase() !== descripcionNueva.toLowerCase()
+            const precioDiferente = Math.abs(precioActual - precioNuevo) > 0.01 // Comparar con tolerancia para decimales
+            
+            if (!descripcionDiferente && !precioDiferente) {
+              // Ni la descripción ni el precio son diferentes, no hacer nada
               results.push({
                 row: rowNumber,
                 descripcion: productoData.descripcion,
                 codigo: productoData.codigo,
                 status: 'skipped',
-                message: `Producto con código "${productoData.codigo}" ya tiene la misma descripción (ID: ${productoExistente.id})`,
+                message: `Producto con código "${productoData.codigo}" ya tiene la misma descripción y precio (ID: ${productoExistente.id})`,
                 data: productoData
               })
             } else {
-              // La descripción es diferente, actualizar SOLO la descripción
+              // Al menos uno es diferente, actualizar SOLO descripción y/o precio
               try {
-                console.log(`🔄 Actualizando SOLO descripción para producto ${productoExistente.id}:`)
-                console.log(`   Descripción actual: "${descripcionActual}"`)
-                console.log(`   Descripción nueva: "${descripcionNueva}"`)
+                const camposAActualizar: any = {}
+                const cambios: string[] = []
+                
+                if (descripcionDiferente) {
+                  camposAActualizar.descripcion = productoData.descripcion
+                  cambios.push(`descripción: "${descripcionActual}" → "${descripcionNueva}"`)
+                  console.log(`🔄 Actualizando descripción: "${descripcionActual}" → "${descripcionNueva}"`)
+                }
+                
+                if (precioDiferente) {
+                  camposAActualizar.precio = productoData.precio
+                  cambios.push(`precio: $${precioActual.toLocaleString()} → $${precioNuevo.toLocaleString()}`)
+                  console.log(`🔄 Actualizando precio: $${precioActual.toLocaleString()} → $${precioNuevo.toLocaleString()}`)
+                }
+                
+                console.log(`🔄 Actualizando producto ${productoExistente.id} con cambios:`, camposAActualizar)
                 
                 const { error } = await supabase
                   .from('productos')
-                  .update({ descripcion: productoData.descripcion })
+                  .update(camposAActualizar)
                   .eq('id', productoExistente.id)
 
                 if (error) throw error
@@ -377,20 +390,20 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
                   descripcion: productoData.descripcion,
                   codigo: productoData.codigo,
                   status: 'updated',
-                  message: `Descripción actualizada para código "${productoData.codigo}" (ID: ${productoExistente.id}). De: "${descripcionActual}" a: "${descripcionNueva}"`,
+                  message: `Producto actualizado para código "${productoData.codigo}" (ID: ${productoExistente.id}). Cambios: ${cambios.join(', ')}`,
                   data: productoData
                 })
 
-                console.log(`✅ Descripción actualizada exitosamente`)
+                console.log(`✅ Producto actualizado exitosamente`)
 
               } catch (error: any) {
-                console.error(`❌ Error actualizando descripción:`, error)
+                console.error(`❌ Error actualizando producto:`, error)
                 results.push({
                   row: rowNumber,
                   descripcion: productoData.descripcion,
                   codigo: productoData.codigo,
                   status: 'error',
-                  message: `Error actualizando descripción: ${error.message}`,
+                  message: `Error actualizando producto: ${error.message}`,
                   data: productoData
                 })
               }
@@ -428,7 +441,6 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
           // Crear el producto
           const nuevoProducto = {
             descripcion: productoData.descripcion,
-            descripcion_detallada: productoData.descripcion_detallada,
             precio: productoData.precio,
             codigo: productoData.codigo,
             fk_id_categoria: categoriaId,
@@ -574,9 +586,9 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
               <li>• <strong>Búsqueda inteligente:</strong> Primero busca por código, luego por descripción</li>
               <li>• <strong>Si encuentra por código:</strong> 
                 <ul className="ml-4 mt-1">
-                  <li>- Si la descripción es diferente: Actualiza SOLO la descripción</li>
-                  <li>- Si la descripción es igual: Se omite (sin cambios)</li>
-                  <li>- <em>Otros campos (marca, precio, etc.) NO se modifican</em></li>
+                  <li>- Si la descripción o precio son diferentes: Actualiza SOLO descripción y/o precio</li>
+                  <li>- Si descripción y precio son iguales: Se omite (sin cambios)</li>
+                  <li>- <em>Otros campos (marca, categoría, etc.) NO se modifican</em></li>
                 </ul>
               </li>
               <li>• <strong>Si encuentra por descripción:</strong> Se omite (ya existe)</li>
