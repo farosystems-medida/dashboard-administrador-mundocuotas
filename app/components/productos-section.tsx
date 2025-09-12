@@ -63,6 +63,7 @@ export const ProductosSection = React.memo(({
     imagenes: [] as string[],
     destacado: false,
     activo: true,
+    tiene_stock: true,
     aplica_todos_plan: false,
     aplica_solo_categoria: false,
     aplica_plan_especial: false
@@ -346,6 +347,7 @@ export const ProductosSection = React.memo(({
       imagenes: [],
       destacado: false,
       activo: true,
+      tiene_stock: true,
       aplica_todos_plan: false,
       aplica_solo_categoria: false,
       aplica_plan_especial: false
@@ -377,6 +379,7 @@ export const ProductosSection = React.memo(({
       imagenes: productImages,
       destacado: producto.destacado || false,
       activo: producto.activo ?? true,
+      tiene_stock: producto.tiene_stock ?? true,
       aplica_todos_plan: producto.aplica_todos_plan || false,
       aplica_solo_categoria: producto.aplica_solo_categoria || false,
       aplica_plan_especial: producto.aplica_plan_especial || false
@@ -455,6 +458,7 @@ export const ProductosSection = React.memo(({
         imagen_5: formData.imagenes[4] && formData.imagenes[4].trim() !== '' ? formData.imagenes[4] : undefined,
         destacado: formData.destacado,
         activo: formData.activo,
+        tiene_stock: formData.tiene_stock,
         aplica_todos_plan: formData.aplica_todos_plan,
         aplica_solo_categoria: formData.aplica_solo_categoria,
         aplica_plan_especial: formData.aplica_plan_especial
@@ -1250,6 +1254,15 @@ export const ProductosSection = React.memo(({
                             />
                             <Label htmlFor="activo">Activo</Label>
                           </div>
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              id="tiene_stock"
+                              checked={formData.tiene_stock}
+                              onCheckedChange={(checked) => setFormData({ ...formData, tiene_stock: checked })}
+                              disabled={isCreating}
+                            />
+                            <Label htmlFor="tiene_stock">Tiene Stock</Label>
+                          </div>
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="aplica_todos_plan"
@@ -1361,6 +1374,7 @@ export const ProductosSection = React.memo(({
               <TableHead>Precio</TableHead>
               <TableHead>Destacado</TableHead>
                     <TableHead>Activo</TableHead>
+              <TableHead>Stock</TableHead>
               <TableHead>Aplica Planes</TableHead>
               <TableHead>Acciones</TableHead>
             </TableRow>
@@ -1446,6 +1460,18 @@ export const ProductosSection = React.memo(({
                         >
                           {producto.activo ? "Activo" : "Inactivo"}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={producto.tiene_stock ?? true}
+                          onCheckedChange={async (checked) => {
+                            try {
+                              await onUpdateProducto(producto.id, { tiene_stock: checked })
+                            } catch (error) {
+                              console.error('Error al actualizar stock:', error)
+                            }
+                          }}
+                        />
                       </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">
@@ -1594,6 +1620,21 @@ export const ProductosSection = React.memo(({
                         }}
                       />
                     )}
+                    
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <span className="text-xs text-gray-600">Stock:</span>
+                      <Switch
+                        size="sm"
+                        checked={producto.tiene_stock ?? true}
+                        onCheckedChange={async (checked) => {
+                          try {
+                            await onUpdateProducto(producto.id, { tiene_stock: checked })
+                          } catch (error) {
+                            console.error('Error al actualizar stock:', error)
+                          }
+                        }}
+                      />
+                    </div>
                     
                     <div className="flex gap-1 pt-2">
                       <Button 

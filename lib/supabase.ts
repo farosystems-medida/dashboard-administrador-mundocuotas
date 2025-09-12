@@ -44,6 +44,7 @@ export interface Producto {
   imagen_5?: string
   destacado?: boolean
   activo?: boolean
+  tiene_stock?: boolean
   aplica_todos_plan?: boolean
   aplica_solo_categoria?: boolean
   aplica_plan_especial?: boolean
