@@ -61,7 +61,8 @@ export function ConfiguracionWebComponent({
     home_display_products_count: configuracionWeb?.home_display_products_count || 12,
     home_display_category_filter: configuracionWeb?.home_display_category_filter || null,
     home_display_brand_filter: configuracionWeb?.home_display_brand_filter || null,
-    home_display_featured_only: configuracionWeb?.home_display_featured_only || false
+    home_display_featured_only: configuracionWeb?.home_display_featured_only || false,
+    combos: configuracionWeb?.combos || false
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -105,7 +106,8 @@ export function ConfiguracionWebComponent({
       home_display_products_count: 12,
       home_display_category_filter: null,
       home_display_brand_filter: null,
-      home_display_featured_only: false
+      home_display_featured_only: false,
+      combos: false
     })
   }
 
@@ -404,13 +406,24 @@ export function ConfiguracionWebComponent({
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="home_display_featured_only"
-                    checked={formData.home_display_featured_only}
-                    onCheckedChange={(checked) => handleInputChange('home_display_featured_only', checked)}
-                  />
-                  <Label htmlFor="home_display_featured_only">Solo mostrar productos destacados</Label>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="home_display_featured_only"
+                      checked={formData.home_display_featured_only}
+                      onCheckedChange={(checked) => handleInputChange('home_display_featured_only', checked)}
+                    />
+                    <Label htmlFor="home_display_featured_only">Solo mostrar productos destacados</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="combos"
+                      checked={formData.combos}
+                      onCheckedChange={(checked) => handleInputChange('combos', checked)}
+                    />
+                    <Label htmlFor="combos">Habilitar combos en la aplicación</Label>
+                  </div>
                 </div>
                 
                 {/* Preview Info */}
@@ -434,6 +447,7 @@ export function ConfiguracionWebComponent({
                         : 'Todas las marcas'
                     }</p>
                     <p><strong>Solo destacados:</strong> {formData.home_display_featured_only ? 'Sí' : 'No'}</p>
+                    <p><strong>Combos habilitados:</strong> {formData.combos ? 'Sí' : 'No'}</p>
                   </div>
                 </div>
               </div>

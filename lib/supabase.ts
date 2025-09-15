@@ -213,4 +213,5 @@ export interface ConfiguracionWeb {
   home_display_category_filter?: number
   home_display_brand_filter?: number
   home_display_featured_only: boolean
+  combos: boolean
 } 
