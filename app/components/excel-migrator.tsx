@@ -128,12 +128,16 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
 
   const findOrCreateCategoria = async (nombreCategoria: string, nombreLinea: string): Promise<number | null> => {
     try {
+      console.log(`🔍 Buscando categoría: "${nombreCategoria}" en ${categorias.length} categorías disponibles`)
       // Buscar categoría existente
       let categoria = categorias.find(c => c.descripcion.toLowerCase() === nombreCategoria.toLowerCase())
       
       if (categoria) {
+        console.log(`✅ Categoría encontrada: "${categoria.descripcion}" (ID: ${categoria.id})`)
         return categoria.id
       }
+
+      console.log(`⚠️  Categoría no encontrada, creando nueva: "${nombreCategoria}"`)
 
       // Buscar o crear línea
       let linea = lineas.find(l => l.descripcion.toLowerCase() === nombreLinea.toLowerCase())
@@ -157,6 +161,11 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
         .single()
 
       if (error) throw error
+      console.log(`✅ Categoría creada: "${nuevaCategoria.descripcion}" (ID: ${nuevaCategoria.id})`)
+
+      // Agregar la nueva categoría a la lista local para futuras búsquedas
+      categorias.push(nuevaCategoria)
+
       return nuevaCategoria.id
     } catch (error) {
       console.error('Error finding/creating categoria:', error)
@@ -339,41 +348,77 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
           }
 
           if (accionARealizar === 'update_by_codigo') {
-            // Verificar si la descripción o el precio son diferentes
+            // Verificar si la descripción, precio o categoría son diferentes
             const descripcionActual = productoExistente.descripcion.trim()
             const descripcionNueva = productoData.descripcion.trim()
             const precioActual = productoExistente.precio
             const precioNuevo = productoData.precio
-            
+
+            // Buscar o crear categoría del Excel
+            const categoriaId = await findOrCreateCategoria(productoData.categoria, productoData.linea)
+            if (!categoriaId) {
+              console.error(`❌ No se pudo obtener/crear categoría "${productoData.categoria}" para producto ${productoData.codigo}`)
+              results.push({
+                row: rowNumber,
+                descripcion: productoData.descripcion,
+                codigo: productoData.codigo,
+                status: 'error',
+                message: `Error al obtener/crear categoría "${productoData.categoria}"`,
+                data: productoData
+              })
+              setProgress((i + 1) / totalRows * 100)
+              continue
+            }
+
+            const categoriaActual = productoExistente.fk_id_categoria
+            const categoriaNueva = categoriaId
+
+            console.log(`🔍 Debug producto ${productoData.codigo}:`)
+            console.log(`  - Categoría actual: ${categoriaActual} (${categorias.find(c => c.id === categoriaActual)?.descripcion || 'Sin categoría'})`)
+            console.log(`  - Categoría nueva: ${categoriaNueva} (${categorias.find(c => c.id === categoriaNueva)?.descripcion || productoData.categoria})`)
+
             const descripcionDiferente = descripcionActual.toLowerCase() !== descripcionNueva.toLowerCase()
             const precioDiferente = Math.abs(precioActual - precioNuevo) > 0.01 // Comparar con tolerancia para decimales
-            
-            if (!descripcionDiferente && !precioDiferente) {
-              // Ni la descripción ni el precio son diferentes, no hacer nada
+            const categoriaDiferente = categoriaActual !== categoriaNueva
+
+            console.log(`  - Descripción diferente: ${descripcionDiferente}`)
+            console.log(`  - Precio diferente: ${precioDiferente}`)
+            console.log(`  - Categoría diferente: ${categoriaDiferente}`)
+
+            if (!descripcionDiferente && !precioDiferente && !categoriaDiferente) {
+              // Ni la descripción, ni el precio, ni la categoría son diferentes, no hacer nada
               results.push({
                 row: rowNumber,
                 descripcion: productoData.descripcion,
                 codigo: productoData.codigo,
                 status: 'skipped',
-                message: `Producto con código "${productoData.codigo}" ya tiene la misma descripción y precio (ID: ${productoExistente.id})`,
+                message: `Producto con código "${productoData.codigo}" ya tiene la misma descripción, precio y categoría (ID: ${productoExistente.id})`,
                 data: productoData
               })
             } else {
-              // Al menos uno es diferente, actualizar SOLO descripción y/o precio
+              // Al menos uno es diferente, actualizar descripción, precio y/o categoría
               try {
                 const camposAActualizar: any = {}
                 const cambios: string[] = []
-                
+
                 if (descripcionDiferente) {
                   camposAActualizar.descripcion = productoData.descripcion
                   cambios.push(`descripción: "${descripcionActual}" → "${descripcionNueva}"`)
                   console.log(`🔄 Actualizando descripción: "${descripcionActual}" → "${descripcionNueva}"`)
                 }
-                
+
                 if (precioDiferente) {
                   camposAActualizar.precio = productoData.precio
                   cambios.push(`precio: $${precioActual.toLocaleString()} → $${precioNuevo.toLocaleString()}`)
                   console.log(`🔄 Actualizando precio: $${precioActual.toLocaleString()} → $${precioNuevo.toLocaleString()}`)
+                }
+
+                if (categoriaDiferente) {
+                  camposAActualizar.fk_id_categoria = categoriaNueva
+                  const categoriaActualNombre = categorias.find(c => c.id === categoriaActual)?.descripcion || 'Sin categoría'
+                  const categoriaNuevaNombre = categorias.find(c => c.id === categoriaNueva)?.descripcion || productoData.categoria
+                  cambios.push(`categoría: "${categoriaActualNombre}" → "${categoriaNuevaNombre}"`)
+                  console.log(`🔄 Actualizando categoría: "${categoriaActualNombre}" → "${categoriaNuevaNombre}"`)
                 }
                 
                 console.log(`🔄 Actualizando producto ${productoExistente.id} con cambios:`, camposAActualizar)
