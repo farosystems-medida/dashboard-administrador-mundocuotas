@@ -96,12 +96,14 @@ export interface ProductoPlan {
 // Tipos para productos por plan por defecto (tabla oculta)
 export interface ProductoPlanDefault {
   id: number
-  fk_id_producto: number
+  fk_id_producto?: number
   fk_id_plan: number
+  fk_id_combo?: number
   activo: boolean
   created_at: string
   producto?: Producto
   plan?: PlanFinanciacion
+  combo?: Combo
 }
 
 // Tipos para combos
@@ -122,6 +124,8 @@ export interface Combo {
   activo: boolean
   created_at: string
   updated_at: string
+  fk_id_categoria?: number
+  categoria?: Categoria
   productos?: ComboProducto[]
 }
 

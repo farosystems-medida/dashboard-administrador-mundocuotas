@@ -12,15 +12,19 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Combo, ComboProducto, Producto } from "@/lib/supabase"
+import { Combo, ComboProducto, Producto, Categoria, PlanFinanciacion } from "@/lib/supabase"
 import { supabase } from "@/lib/supabase"
 
 interface CombosSectionProps {
   productos: Producto[]
+  categorias: Categoria[]
+  planes: PlanFinanciacion[]
 }
 
 export const CombosSection = React.memo(({
-  productos
+  productos,
+  categorias,
+  planes
 }: CombosSectionProps) => {
   // Debug temporal - vamos a ver qué productos llegan
   useEffect(() => {
@@ -34,6 +38,7 @@ export const CombosSection = React.memo(({
     })))
   }, [productos])
   const [combos, setCombos] = useState<Combo[]>([])
+  const [comboPlanesMap, setComboPlanesMap] = useState<Map<number, PlanFinanciacion[]>>(new Map())
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingCombo, setEditingCombo] = useState<Combo | null>(null)
@@ -53,6 +58,8 @@ export const CombosSection = React.memo(({
     fecha_vigencia_inicio: "",
     fecha_vigencia_fin: "",
     descuento_porcentaje: "0",
+    fk_id_categoria: "0",
+    planes_asociados: [] as string[],
     imagenes: [] as string[],
     activo: true
   })
@@ -68,6 +75,7 @@ export const CombosSection = React.memo(({
         .from('combos')
         .select(`
           *,
+          categoria:categorias(*),
           productos:combo_productos(
             id,
             fk_id_producto,
@@ -87,8 +95,43 @@ export const CombosSection = React.memo(({
         }
       }
       setCombos(data || [])
+
+      // Cargar planes asociados para cada combo
+      await loadComboPlanesAssociations(data || [])
     } catch (error) {
       console.error('Error loading combos:', error)
+    }
+  }
+
+  const loadComboPlanesAssociations = async (combosData: Combo[]) => {
+    try {
+      const comboIds = combosData.map(c => c.id)
+      if (comboIds.length === 0) return
+
+      const { data: associations, error } = await supabase
+        .from('productos_planes_default')
+        .select(`
+          fk_id_combo,
+          plan:planes_financiacion(*)
+        `)
+        .in('fk_id_combo', comboIds)
+        .not('fk_id_combo', 'is', null)
+
+      if (error) throw error
+
+      const newPlanesMap = new Map<number, PlanFinanciacion[]>()
+
+      associations?.forEach(assoc => {
+        if (assoc.fk_id_combo && assoc.plan) {
+          const existingPlanes = newPlanesMap.get(assoc.fk_id_combo) || []
+          existingPlanes.push(assoc.plan)
+          newPlanesMap.set(assoc.fk_id_combo, existingPlanes)
+        }
+      })
+
+      setComboPlanesMap(newPlanesMap)
+    } catch (error) {
+      console.error('Error loading combo-plan associations:', error)
     }
   }
 
@@ -151,6 +194,8 @@ export const CombosSection = React.memo(({
       fecha_vigencia_inicio: "",
       fecha_vigencia_fin: "",
       descuento_porcentaje: "0",
+      fk_id_categoria: "0",
+      planes_asociados: [],
       imagenes: [],
       activo: true
     })
@@ -160,9 +205,9 @@ export const CombosSection = React.memo(({
     console.log('✅ Formulario reseteado')
   }
 
-  const handleEdit = (combo: Combo) => {
+  const handleEdit = async (combo: Combo) => {
     setEditingCombo(combo)
-    
+
     const comboImages = [
       combo.imagen,
       combo.imagen_2,
@@ -171,12 +216,22 @@ export const CombosSection = React.memo(({
       combo.imagen_5,
     ].filter(Boolean) as string[]
 
+    // Cargar planes asociados al combo
+    const { data: planesAsociados } = await supabase
+      .from('productos_planes_default')
+      .select('fk_id_plan')
+      .eq('fk_id_combo', combo.id)
+
+    const planesIds = planesAsociados?.map(p => p.fk_id_plan.toString()) || []
+
     setFormData({
       nombre: combo.nombre || "",
       descripcion: combo.descripcion || "",
       fecha_vigencia_inicio: combo.fecha_vigencia_inicio || "",
       fecha_vigencia_fin: combo.fecha_vigencia_fin || "",
       descuento_porcentaje: combo.descuento_porcentaje?.toString() || "0",
+      fk_id_categoria: combo.fk_id_categoria?.toString() || "0",
+      planes_asociados: planesIds,
       imagenes: comboImages,
       activo: combo.activo ?? true
     })
@@ -253,6 +308,7 @@ export const CombosSection = React.memo(({
         fecha_vigencia_inicio: formData.fecha_vigencia_inicio || undefined,
         fecha_vigencia_fin: formData.fecha_vigencia_fin || undefined,
         descuento_porcentaje: parseFloat(formData.descuento_porcentaje),
+        fk_id_categoria: formData.fk_id_categoria !== "0" ? parseInt(formData.fk_id_categoria) : null,
         imagen: formData.imagenes[0] || undefined,
         imagen_2: formData.imagenes[1] || undefined,
         imagen_3: formData.imagenes[2] || undefined,
@@ -332,6 +388,38 @@ export const CombosSection = React.memo(({
         if (calcError) {
           console.error('Error calculando precios:', calcError)
         }
+      }
+
+      // Manejar asociaciones con planes de financiación
+      if (comboId && formData.planes_asociados.length > 0) {
+        // Si estamos editando, primero eliminar asociaciones existentes
+        if (editingCombo) {
+          await supabase
+            .from('productos_planes_default')
+            .delete()
+            .eq('fk_id_combo', comboId)
+        }
+
+        // Crear nuevas asociaciones
+        const planAssociations = formData.planes_asociados.map(planId => ({
+          fk_id_combo: comboId,
+          fk_id_plan: parseInt(planId),
+          activo: true
+        }))
+
+        const { error: planError } = await supabase
+          .from('productos_planes_default')
+          .insert(planAssociations)
+
+        if (planError) {
+          console.error('Error asociando planes:', planError)
+        }
+      } else if (editingCombo) {
+        // Si no hay planes seleccionados pero estamos editando, eliminar asociaciones existentes
+        await supabase
+          .from('productos_planes_default')
+          .delete()
+          .eq('fk_id_combo', editingCombo.id)
       }
 
       await loadCombos()
@@ -625,6 +713,75 @@ export const CombosSection = React.memo(({
                             placeholder="0.00"
                           />
                         </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="fk_id_categoria">Categoría (Opcional)</Label>
+                        <Select
+                          value={formData.fk_id_categoria}
+                          onValueChange={(value) => setFormData({ ...formData, fk_id_categoria: value })}
+                          disabled={isCreating}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar categoría..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">Sin categoría</SelectItem>
+                            {categorias.map((categoria) => (
+                              <SelectItem key={categoria.id} value={categoria.id.toString()}>
+                                {categoria.descripcion}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label>Planes de Financiación (Opcional)</Label>
+                          <Badge variant="outline">
+                            {formData.planes_asociados.length} plan{formData.planes_asociados.length !== 1 ? 'es' : ''} seleccionado{formData.planes_asociados.length !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded-lg p-3">
+                          {planes.map((plan) => (
+                            <div key={plan.id} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`plan-${plan.id}`}
+                                checked={formData.planes_asociados.includes(plan.id.toString())}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setFormData({
+                                      ...formData,
+                                      planes_asociados: [...formData.planes_asociados, plan.id.toString()]
+                                    })
+                                  } else {
+                                    setFormData({
+                                      ...formData,
+                                      planes_asociados: formData.planes_asociados.filter(id => id !== plan.id.toString())
+                                    })
+                                  }
+                                }}
+                                disabled={isCreating}
+                                className="rounded"
+                              />
+                              <label
+                                htmlFor={`plan-${plan.id}`}
+                                className="text-sm cursor-pointer flex-1"
+                              >
+                                {plan.nombre} ({plan.cuotas} cuotas)
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+
+                        {formData.planes_asociados.length > 0 && (
+                          <div className="text-xs text-blue-600">
+                            Este combo estará disponible en los planes seleccionados
+                          </div>
+                        )}
                       </div>
 
                       <div>
@@ -1089,6 +1246,8 @@ export const CombosSection = React.memo(({
                   <TableRow>
                     <TableHead>Imagen</TableHead>
                     <TableHead>Nombre</TableHead>
+                    <TableHead>Categoría</TableHead>
+                    <TableHead>Planes</TableHead>
                     <TableHead>Productos</TableHead>
                     <TableHead>Precio Original</TableHead>
                     <TableHead>Descuento</TableHead>
@@ -1127,6 +1286,27 @@ export const CombosSection = React.memo(({
                             {combo.descripcion}
                           </div>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        {combo.categoria ? (
+                          <Badge variant="outline" className="text-xs">
+                            {combo.categoria.descripcion}
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-400 text-xs">Sin categoría</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {(comboPlanesMap.get(combo.id) || []).map((plan) => (
+                            <Badge key={plan.id} variant="secondary" className="text-xs">
+                              {plan.nombre} ({plan.cuotas}c)
+                            </Badge>
+                          ))}
+                          {(!comboPlanesMap.get(combo.id) || comboPlanesMap.get(combo.id)?.length === 0) && (
+                            <span className="text-gray-400 text-xs">Sin planes</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
@@ -1237,7 +1417,25 @@ export const CombosSection = React.memo(({
                         <div className="text-xs text-gray-500">
                           {combo.productos?.length || 0} producto{(combo.productos?.length || 0) !== 1 ? 's' : ''}
                         </div>
-                        
+
+                        {combo.categoria && (
+                          <div className="text-xs">
+                            <Badge variant="outline" className="text-xs">
+                              {combo.categoria.descripcion}
+                            </Badge>
+                          </div>
+                        )}
+
+                        {(comboPlanesMap.get(combo.id) || []).length > 0 && (
+                          <div className="text-xs flex flex-wrap gap-1">
+                            {(comboPlanesMap.get(combo.id) || []).map((plan) => (
+                              <Badge key={plan.id} variant="secondary" className="text-xs">
+                                {plan.nombre}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
                         {combo.descripcion && (
                           <div className="text-xs text-gray-600 line-clamp-2">
                             {combo.descripcion}

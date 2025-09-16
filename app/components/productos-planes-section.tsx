@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react"
+import { supabase } from "@/lib/supabase"
 import { Plus, Edit, Trash2, Search, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { ProductoPlanDefault, Producto, PlanFinanciacion } from "@/lib/supabase"
+import { ProductoPlanDefault, Producto, PlanFinanciacion, Combo } from "@/lib/supabase"
 
 interface ProductosPlanesSectionProps {
   productosPlanesDefault: ProductoPlanDefault[]
@@ -27,6 +28,7 @@ export const ProductosPlanesSection = React.memo(({
   onUpdateProductoPlanDefault,
   onDeleteProductoPlanDefault
 }: ProductosPlanesSectionProps) => {
+  const [combos, setCombos] = useState<Combo[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingProductoPlanDefault, setEditingProductoPlanDefault] = useState<ProductoPlanDefault | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -38,14 +40,38 @@ export const ProductosPlanesSection = React.memo(({
   const [filterActivo, setFilterActivo] = useState<string>("all")
 
   const [formData, setFormData] = useState({
+    tipo_asociacion: "producto" as "producto" | "combo",
     fk_id_producto: undefined as string | undefined,
+    fk_id_combo: undefined as string | undefined,
     fk_id_plan: undefined as string | undefined,
     activo: true
   })
 
+  // Cargar combos al montar el componente
+  useEffect(() => {
+    const loadCombos = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('combos')
+          .select('id, nombre, activo')
+          .eq('activo', true)
+          .order('nombre', { ascending: true })
+
+        if (error) throw error
+        setCombos(data || [])
+      } catch (error) {
+        console.error('Error loading combos:', error)
+      }
+    }
+
+    loadCombos()
+  }, [])
+
   const resetForm = () => {
     setFormData({
+      tipo_asociacion: "producto",
       fk_id_producto: undefined,
+      fk_id_combo: undefined,
       fk_id_plan: undefined,
       activo: true
     })
@@ -55,7 +81,9 @@ export const ProductosPlanesSection = React.memo(({
   const handleEdit = (productoPlanDefault: ProductoPlanDefault) => {
     setEditingProductoPlanDefault(productoPlanDefault)
     setFormData({
-      fk_id_producto: productoPlanDefault.fk_id_producto.toString(),
+      tipo_asociacion: productoPlanDefault.fk_id_combo ? "combo" : "producto",
+      fk_id_producto: productoPlanDefault.fk_id_producto?.toString(),
+      fk_id_combo: productoPlanDefault.fk_id_combo?.toString(),
       fk_id_plan: productoPlanDefault.fk_id_plan.toString(),
       activo: productoPlanDefault.activo
     })
@@ -64,20 +92,30 @@ export const ProductosPlanesSection = React.memo(({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Validar que se hayan seleccionado producto y plan
-    if (!formData.fk_id_producto || !formData.fk_id_plan) {
-      console.error("Debe seleccionar un producto y un plan")
+
+    // Validar que se haya seleccionado plan y producto o combo
+    const hasProducto = formData.tipo_asociacion === "producto" && formData.fk_id_producto
+    const hasCombo = formData.tipo_asociacion === "combo" && formData.fk_id_combo
+
+    if (!formData.fk_id_plan || (!hasProducto && !hasCombo)) {
+      console.error("Debe seleccionar un plan y un producto o combo")
       return
     }
-    
+
     setIsCreating(true)
 
     try {
-      const productoPlanDefaultData = {
-        fk_id_producto: parseInt(formData.fk_id_producto),
+      const productoPlanDefaultData: any = {
         fk_id_plan: parseInt(formData.fk_id_plan),
         activo: formData.activo
+      }
+
+      if (formData.tipo_asociacion === "producto" && formData.fk_id_producto) {
+        productoPlanDefaultData.fk_id_producto = parseInt(formData.fk_id_producto)
+        productoPlanDefaultData.fk_id_combo = undefined
+      } else if (formData.tipo_asociacion === "combo" && formData.fk_id_combo) {
+        productoPlanDefaultData.fk_id_combo = parseInt(formData.fk_id_combo)
+        productoPlanDefaultData.fk_id_producto = undefined
       }
 
       if (editingProductoPlanDefault) {
@@ -161,24 +199,72 @@ export const ProductosPlanesSection = React.memo(({
                </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="producto">Producto</Label>
+                  <Label>Tipo de Asociación</Label>
                   <Select
-                    value={formData.fk_id_producto}
-                    onValueChange={(value) => setFormData({ ...formData, fk_id_producto: value })}
+                    value={formData.tipo_asociacion}
+                    onValueChange={(value: "producto" | "combo") => {
+                      setFormData({
+                        ...formData,
+                        tipo_asociacion: value,
+                        fk_id_producto: undefined,
+                        fk_id_combo: undefined
+                      })
+                    }}
                     disabled={isCreating}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar producto" />
+                      <SelectValue placeholder="Seleccionar tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                      {productos.map((producto) => (
-                        <SelectItem key={producto.id} value={producto.id.toString()}>
-                          {producto.descripcion}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="producto">Producto</SelectItem>
+                      <SelectItem value="combo">Combo</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
+                {formData.tipo_asociacion === "producto" && (
+                  <div>
+                    <Label htmlFor="producto">Producto</Label>
+                    <Select
+                      value={formData.fk_id_producto}
+                      onValueChange={(value) => setFormData({ ...formData, fk_id_producto: value })}
+                      disabled={isCreating}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar producto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {productos.map((producto) => (
+                          <SelectItem key={producto.id} value={producto.id.toString()}>
+                            {producto.descripcion}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {formData.tipo_asociacion === "combo" && (
+                  <div>
+                    <Label htmlFor="combo">Combo</Label>
+                    <Select
+                      value={formData.fk_id_combo}
+                      onValueChange={(value) => setFormData({ ...formData, fk_id_combo: value })}
+                      disabled={isCreating}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar combo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {combos.map((combo) => (
+                          <SelectItem key={combo.id} value={combo.id.toString()}>
+                            {combo.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="plan">Plan</Label>
                   <Select
@@ -276,7 +362,8 @@ export const ProductosPlanesSection = React.memo(({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Producto</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Producto/Combo</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Fecha Creación</TableHead>
@@ -286,12 +373,27 @@ export const ProductosPlanesSection = React.memo(({
             <TableBody>
               {filteredData.map((item) => {
                 const producto = productos.find(p => p.id === item.fk_id_producto)
+                const combo = combos.find(c => c.id === item.fk_id_combo)
                 const plan = planes.find(pl => pl.id === item.fk_id_plan)
-                
+                const isCombo = item.fk_id_combo !== null && item.fk_id_combo !== undefined
+
                 return (
                   <TableRow key={item.id}>
+                    <TableCell>
+                      {isCombo ? (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                          Combo
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                          Producto
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">
-                      {producto?.descripcion || `Producto ${item.fk_id_producto}`}
+                      {isCombo
+                        ? combo?.nombre || `Combo ${item.fk_id_combo}`
+                        : producto?.descripcion || `Producto ${item.fk_id_producto}`}
                     </TableCell>
                     <TableCell>{plan?.nombre || `Plan ${item.fk_id_plan}`}</TableCell>
                     <TableCell>

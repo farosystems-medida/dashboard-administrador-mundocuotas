@@ -187,8 +187,10 @@ function Dashboard() {
         )
       case "combos":
         return (
-          <CombosSection 
+          <CombosSection
             productos={productos}
+            categorias={categorias}
+            planes={planes}
           />
         )
       case "lineas":
