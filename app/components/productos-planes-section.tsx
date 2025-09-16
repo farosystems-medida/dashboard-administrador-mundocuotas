@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
-import { Plus, Edit, Trash2, Search, Filter } from "lucide-react"
+import { Plus, Edit, Trash2, Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -9,12 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { ProductoPlanDefault, Producto, PlanFinanciacion, Combo } from "@/lib/supabase"
+import { ProductoPlanDefault, Producto, PlanFinanciacion, Combo, Categoria } from "@/lib/supabase"
 
 interface ProductosPlanesSectionProps {
   productosPlanesDefault: ProductoPlanDefault[]
   productos: Producto[]
   planes: PlanFinanciacion[]
+  categorias: Categoria[]
   onCreateProductoPlanDefault: (productoPlanDefault: Omit<ProductoPlanDefault, 'id' | 'created_at'>) => Promise<void>
   onUpdateProductoPlanDefault: (id: number, productoPlanDefault: Partial<ProductoPlanDefault>) => Promise<void>
   onDeleteProductoPlanDefault: (id: number) => Promise<void>
@@ -24,6 +25,7 @@ export const ProductosPlanesSection = React.memo(({
   productosPlanesDefault,
   productos,
   planes,
+  categorias,
   onCreateProductoPlanDefault,
   onUpdateProductoPlanDefault,
   onDeleteProductoPlanDefault
@@ -38,6 +40,9 @@ export const ProductosPlanesSection = React.memo(({
   const [filterProducto, setFilterProducto] = useState("all")
   const [filterPlan, setFilterPlan] = useState("all")
   const [filterActivo, setFilterActivo] = useState<string>("all")
+  const [filterCategoria, setFilterCategoria] = useState("all")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20
 
   const [formData, setFormData] = useState({
     tipo_asociacion: "producto" as "producto" | "combo",
@@ -151,23 +156,53 @@ export const ProductosPlanesSection = React.memo(({
     setProductoPlanDefaultToDelete(null)
   }
 
-  // Filtrar datos
-  const filteredData = productosPlanesDefault.filter(item => {
-    const producto = productos.find(p => p.id === item.fk_id_producto)
-    const plan = planes.find(pl => pl.id === item.fk_id_plan)
-    
-    const matchesSearch = searchTerm === "" || 
-      producto?.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      plan?.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesProducto = filterProducto === "all" || item.fk_id_producto.toString() === filterProducto
-    const matchesPlan = filterPlan === "all" || item.fk_id_plan.toString() === filterPlan
-    const matchesActivo = filterActivo === "all" || 
-      (filterActivo === "active" && item.activo) ||
-      (filterActivo === "inactive" && !item.activo)
+  // Filtrar y ordenar datos
+  const filteredAndSortedData = productosPlanesDefault
+    .filter(item => {
+      const producto = productos.find(p => p.id === item.fk_id_producto)
+      const combo = combos.find(c => c.id === item.fk_id_combo)
+      const plan = planes.find(pl => pl.id === item.fk_id_plan)
 
-    return matchesSearch && matchesProducto && matchesPlan && matchesActivo
-  })
+      const matchesSearch = searchTerm === "" ||
+        producto?.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        combo?.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        plan?.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+
+      const matchesProducto = filterProducto === "all" || item.fk_id_producto?.toString() === filterProducto
+      const matchesPlan = filterPlan === "all" || item.fk_id_plan.toString() === filterPlan
+      const matchesActivo = filterActivo === "all" ||
+        (filterActivo === "active" && item.activo) ||
+        (filterActivo === "inactive" && !item.activo)
+
+      // Filtro por categoría - solo aplica a productos, no a combos
+      const matchesCategoria = filterCategoria === "all" ||
+        (item.fk_id_producto && producto?.fk_id_categoria?.toString() === filterCategoria)
+
+      return matchesSearch && matchesProducto && matchesPlan && matchesActivo && matchesCategoria
+    })
+    .sort((a, b) => {
+      // Ordenar alfabéticamente por producto/combo
+      const productoA = productos.find(p => p.id === a.fk_id_producto)
+      const comboA = combos.find(c => c.id === a.fk_id_combo)
+      const productoB = productos.find(p => p.id === b.fk_id_producto)
+      const comboB = combos.find(c => c.id === b.fk_id_combo)
+
+      const nameA = productoA?.descripcion || comboA?.nombre || ""
+      const nameB = productoB?.descripcion || comboB?.nombre || ""
+
+      return nameA.toLowerCase().localeCompare(nameB.toLowerCase())
+    })
+
+  // Paginación
+  const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentData = filteredAndSortedData.slice(startIndex, endIndex)
+
+  // Resetear página cuando cambie el filtrado
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filterProducto, filterPlan, filterActivo, filterCategoria])
 
   return (
     <>
@@ -345,6 +380,21 @@ export const ProductosPlanesSection = React.memo(({
                 </Select>
               </div>
               <div className="flex items-center space-x-2">
+                <Select value={filterCategoria} onValueChange={setFilterCategoria}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filtrar por categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las categorías</SelectItem>
+                    {categorias.map((categoria) => (
+                      <SelectItem key={categoria.id} value={categoria.id.toString()}>
+                        {categoria.descripcion}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center space-x-2">
                 <Select value={filterActivo} onValueChange={setFilterActivo}>
                   <SelectTrigger className="w-32">
                     <SelectValue placeholder="Estado" />
@@ -371,7 +421,7 @@ export const ProductosPlanesSection = React.memo(({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.map((item) => {
+              {currentData.map((item) => {
                 const producto = productos.find(p => p.id === item.fk_id_producto)
                 const combo = combos.find(c => c.id === item.fk_id_combo)
                 const plan = planes.find(pl => pl.id === item.fk_id_plan)
@@ -427,6 +477,65 @@ export const ProductosPlanesSection = React.memo(({
               })}
             </TableBody>
           </Table>
+
+          {/* Paginación */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-2 py-4">
+              <div className="flex items-center space-x-2">
+                <p className="text-sm text-gray-700">
+                  Mostrando {startIndex + 1} a {Math.min(endIndex, filteredAndSortedData.length)} de {filteredAndSortedData.length} asociaciones
+                  {(searchTerm || filterProducto !== "all" || filterPlan !== "all" || filterActivo !== "all" || filterCategoria !== "all") &&
+                    ` (filtradas de ${productosPlanesDefault.length} total)`}
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                <span className="px-3 py-1 text-sm">
+                  {currentPage} de {totalPages}
+                </span>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
