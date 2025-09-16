@@ -97,9 +97,15 @@ export const ProductosSection = React.memo(({
 
     // Filtro por categoría
     if (filterCategoria !== "all") {
-      filtered = filtered.filter(producto => 
-        producto.fk_id_categoria?.toString() === filterCategoria
-      )
+      if (filterCategoria === "sin_categoria") {
+        filtered = filtered.filter(producto =>
+          !producto.fk_id_categoria || producto.fk_id_categoria === null
+        )
+      } else {
+        filtered = filtered.filter(producto =>
+          producto.fk_id_categoria?.toString() === filterCategoria
+        )
+      }
     }
 
     // Filtro por marca
@@ -1319,6 +1325,7 @@ export const ProductosSection = React.memo(({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas las categorías</SelectItem>
+                  <SelectItem value="sin_categoria">Sin categoría</SelectItem>
                   {categorias.map((categoria) => (
                     <SelectItem key={categoria.id} value={categoria.id.toString()}>
                       {categoria.descripcion}

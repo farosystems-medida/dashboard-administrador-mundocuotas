@@ -52,6 +52,11 @@ export const ProductosPlanesSection = React.memo(({
     activo: true
   })
 
+  // Estados para búsqueda de productos
+  const [productSearchTerm, setProductSearchTerm] = useState("")
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false)
+  const [selectedProductName, setSelectedProductName] = useState("")
+
   // Cargar combos al montar el componente
   useEffect(() => {
     const loadCombos = async () => {
@@ -80,11 +85,22 @@ export const ProductosPlanesSection = React.memo(({
       fk_id_plan: undefined,
       activo: true
     })
+    setProductSearchTerm("")
+    setSelectedProductName("")
+    setShowProductSuggestions(false)
     setEditingProductoPlanDefault(null)
   }
 
   const handleEdit = (productoPlanDefault: ProductoPlanDefault) => {
     setEditingProductoPlanDefault(productoPlanDefault)
+
+    // Si es un producto, buscar el nombre para mostrarlo
+    let productoNombre = ""
+    if (productoPlanDefault.fk_id_producto) {
+      const producto = productos.find(p => p.id === productoPlanDefault.fk_id_producto)
+      productoNombre = producto?.descripcion || ""
+    }
+
     setFormData({
       tipo_asociacion: productoPlanDefault.fk_id_combo ? "combo" : "producto",
       fk_id_producto: productoPlanDefault.fk_id_producto?.toString(),
@@ -92,6 +108,10 @@ export const ProductosPlanesSection = React.memo(({
       fk_id_plan: productoPlanDefault.fk_id_plan.toString(),
       activo: productoPlanDefault.activo
     })
+
+    setSelectedProductName(productoNombre)
+    setProductSearchTerm(productoNombre)
+    setShowProductSuggestions(false)
     setIsDialogOpen(true)
   }
 
@@ -204,6 +224,23 @@ export const ProductosPlanesSection = React.memo(({
     setCurrentPage(1)
   }, [searchTerm, filterProducto, filterPlan, filterActivo, filterCategoria])
 
+  // Cerrar sugerencias al hacer click fuera
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showProductSuggestions) {
+        const target = event.target as Element
+        if (!target.closest('.relative')) {
+          setShowProductSuggestions(false)
+        }
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showProductSuggestions])
+
   return (
     <>
       <Card>
@@ -244,6 +281,10 @@ export const ProductosPlanesSection = React.memo(({
                         fk_id_producto: undefined,
                         fk_id_combo: undefined
                       })
+                      // Limpiar búsqueda de productos al cambiar tipo
+                      setProductSearchTerm("")
+                      setSelectedProductName("")
+                      setShowProductSuggestions(false)
                     }}
                     disabled={isCreating}
                   >
@@ -258,24 +299,64 @@ export const ProductosPlanesSection = React.memo(({
                 </div>
 
                 {formData.tipo_asociacion === "producto" && (
-                  <div>
+                  <div className="relative">
                     <Label htmlFor="producto">Producto</Label>
-                    <Select
-                      value={formData.fk_id_producto}
-                      onValueChange={(value) => setFormData({ ...formData, fk_id_producto: value })}
+                    <Input
+                      id="producto"
+                      type="text"
+                      value={productSearchTerm}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setProductSearchTerm(value)
+                        setShowProductSuggestions(value.length > 0)
+
+                        // Si el valor está vacío, limpiar la selección
+                        if (!value) {
+                          setFormData({ ...formData, fk_id_producto: undefined })
+                          setSelectedProductName("")
+                        }
+                      }}
+                      onFocus={() => {
+                        if (productSearchTerm.length > 0) {
+                          setShowProductSuggestions(true)
+                        }
+                      }}
+                      placeholder="Buscar producto..."
                       disabled={isCreating}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar producto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {productos.map((producto) => (
-                          <SelectItem key={producto.id} value={producto.id.toString()}>
-                            {producto.descripcion}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      className="w-full"
+                    />
+
+                    {/* Sugerencias de productos */}
+                    {showProductSuggestions && productSearchTerm.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {productos
+                          .filter(producto =>
+                            producto.descripcion.toLowerCase().includes(productSearchTerm.toLowerCase())
+                          )
+                          .slice(0, 10) // Limitar a 10 resultados
+                          .map((producto) => (
+                            <div
+                              key={producto.id}
+                              className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
+                              onClick={() => {
+                                setFormData({ ...formData, fk_id_producto: producto.id.toString() })
+                                setSelectedProductName(producto.descripcion)
+                                setProductSearchTerm(producto.descripcion)
+                                setShowProductSuggestions(false)
+                              }}
+                            >
+                              {producto.descripcion}
+                            </div>
+                          ))}
+                        {productos.filter(producto =>
+                          producto.descripcion.toLowerCase().includes(productSearchTerm.toLowerCase())
+                        ).length === 0 && (
+                          <div className="px-3 py-2 text-sm text-gray-500">
+                            No se encontraron productos
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
