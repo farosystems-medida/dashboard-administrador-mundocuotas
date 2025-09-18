@@ -50,6 +50,8 @@ export const CombosSection = React.memo(({
   const [filterEstado, setFilterEstado] = useState("all")
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [selectedProducts, setSelectedProducts] = useState<{id: number, cantidad: number, precio_unitario?: number}[]>([])
+  const [productSearchTerm, setProductSearchTerm] = useState("")
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false)
   const itemsPerPage = 10
   
   const [formData, setFormData] = useState({
@@ -200,6 +202,8 @@ export const CombosSection = React.memo(({
     setSelectedProducts([])
     setEditingCombo(null)
     setCurrentImageIndex(0)
+    setProductSearchTerm("")
+    setShowProductSuggestions(false)
     console.log('✅ Formulario reseteado')
   }
 
@@ -243,6 +247,8 @@ export const CombosSection = React.memo(({
     }
 
     setCurrentImageIndex(0)
+    setProductSearchTerm("")
+    setShowProductSuggestions(false)
     setIsDialogOpen(true)
   }
 
@@ -496,6 +502,20 @@ export const CombosSection = React.memo(({
   }
 
   const { totalPrice, finalPrice } = calculateComboPrice()
+
+  // Filtrar productos para el buscador
+  const filteredProducts = useMemo(() => {
+    if (!productSearchTerm.trim()) return []
+
+    const term = productSearchTerm.toLowerCase().trim()
+    return productos
+      .filter(p => !selectedProducts.find(sp => sp.id === p.id))
+      .filter(p =>
+        p.descripcion?.toLowerCase().includes(term) ||
+        p.id.toString().includes(term)
+      )
+      .slice(0, 10) // Limitar a 10 resultados
+  }, [productos, selectedProducts, productSearchTerm])
 
   // Función helper para extraer el path del archivo de una URL de Supabase
   const extractFilePathFromUrl = (imageUrl: string): string => {
@@ -804,23 +824,66 @@ export const CombosSection = React.memo(({
                           </div>
                         )}
 
-                        {/* Selector de productos */}
+                        {/* Buscador de productos */}
                         <div className="space-y-2">
-                          <Label>Agregar productos</Label>
-                          <Select onValueChange={(value) => addProductToCombo(parseInt(value))} disabled={isCreating}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar producto para agregar..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {productos
-                                .filter(p => !selectedProducts.find(sp => sp.id === p.id))
-                                .map((producto) => (
-                                  <SelectItem key={producto.id} value={producto.id.toString()}>
-                                    {producto.descripcion} - {formatPrice(producto.precio)}
-                                  </SelectItem>
+                          <Label>Buscar y agregar productos</Label>
+                          <div className="relative">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                              <Input
+                                placeholder="Buscar productos por nombre o ID..."
+                                value={productSearchTerm}
+                                onChange={(e) => {
+                                  setProductSearchTerm(e.target.value)
+                                  setShowProductSuggestions(e.target.value.trim().length > 0)
+                                }}
+                                onFocus={() => setShowProductSuggestions(productSearchTerm.trim().length > 0)}
+                                onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
+                                className="pl-10"
+                                disabled={isCreating}
+                              />
+                            </div>
+
+                            {/* Sugerencias de productos */}
+                            {showProductSuggestions && filteredProducts.length > 0 && (
+                              <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                {filteredProducts.map((producto) => (
+                                  <div
+                                    key={producto.id}
+                                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
+                                    onClick={() => {
+                                      addProductToCombo(producto.id)
+                                      setProductSearchTerm("")
+                                      setShowProductSuggestions(false)
+                                    }}
+                                  >
+                                    <div className="flex justify-between items-center">
+                                      <div className="flex-1">
+                                        <div className="text-sm font-medium text-gray-900">
+                                          {producto.descripcion}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          ID: {producto.id}
+                                        </div>
+                                      </div>
+                                      <div className="text-sm font-semibold text-green-600">
+                                        {formatPrice(producto.precio)}
+                                      </div>
+                                    </div>
+                                  </div>
                                 ))}
-                            </SelectContent>
-                          </Select>
+                              </div>
+                            )}
+
+                            {/* Mensaje cuando no hay resultados */}
+                            {showProductSuggestions && productSearchTerm.trim().length > 0 && filteredProducts.length === 0 && (
+                              <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg">
+                                <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                                  No se encontraron productos que coincidan con "{productSearchTerm}"
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 

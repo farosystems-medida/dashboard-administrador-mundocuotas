@@ -62,7 +62,8 @@ export function ConfiguracionWebComponent({
     home_display_category_filter: configuracionWeb?.home_display_category_filter || null,
     home_display_brand_filter: configuracionWeb?.home_display_brand_filter || null,
     home_display_featured_only: configuracionWeb?.home_display_featured_only || false,
-    combos: configuracionWeb?.combos || false
+    combos: configuracionWeb?.combos || false,
+    titulo_seccion_combos: configuracionWeb?.titulo_seccion_combos || "Combos Especiales"
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,7 +108,8 @@ export function ConfiguracionWebComponent({
       home_display_category_filter: null,
       home_display_brand_filter: null,
       home_display_featured_only: false,
-      combos: false
+      combos: false,
+      titulo_seccion_combos: "Combos Especiales"
     })
   }
 
@@ -425,6 +427,26 @@ export function ConfiguracionWebComponent({
                     <Label htmlFor="combos">Habilitar combos en la aplicación</Label>
                   </div>
                 </div>
+
+                {/* Campo para título de sección de combos */}
+                {formData.combos && (
+                  <div className="space-y-2">
+                    <Label htmlFor="titulo_seccion_combos">Título de la sección de combos</Label>
+                    <Input
+                      id="titulo_seccion_combos"
+                      value={formData.titulo_seccion_combos}
+                      onChange={(e) => handleInputChange('titulo_seccion_combos', e.target.value)}
+                      placeholder="Ej: Combos Especiales, Ofertas Combo, etc."
+                      maxLength={50}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Este será el título que aparecerá en la sección de combos del sitio web
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                </div>
                 
                 {/* Preview Info */}
                 <div className="bg-blue-50 p-4 rounded-lg">
@@ -448,6 +470,9 @@ export function ConfiguracionWebComponent({
                     }</p>
                     <p><strong>Solo destacados:</strong> {formData.home_display_featured_only ? 'Sí' : 'No'}</p>
                     <p><strong>Combos habilitados:</strong> {formData.combos ? 'Sí' : 'No'}</p>
+                    {formData.combos && (
+                      <p><strong>Título sección combos:</strong> "{formData.titulo_seccion_combos}"</p>
+                    )}
                   </div>
                 </div>
               </div>
