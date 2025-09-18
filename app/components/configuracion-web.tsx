@@ -63,7 +63,9 @@ export function ConfiguracionWebComponent({
     home_display_brand_filter: configuracionWeb?.home_display_brand_filter || null,
     home_display_featured_only: configuracionWeb?.home_display_featured_only || false,
     combos: configuracionWeb?.combos || false,
-    titulo_seccion_combos: configuracionWeb?.titulo_seccion_combos || "Combos Especiales"
+    titulo_seccion_combos: configuracionWeb?.titulo_seccion_combos || "Combos Especiales",
+    titulo_seccion_promos: configuracionWeb?.titulo_seccion_promos || "Promociones",
+    titulo_seccion_destacados: configuracionWeb?.titulo_seccion_destacados || "Productos Destacados"
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -109,7 +111,9 @@ export function ConfiguracionWebComponent({
       home_display_brand_filter: null,
       home_display_featured_only: false,
       combos: false,
-      titulo_seccion_combos: "Combos Especiales"
+      titulo_seccion_combos: "Combos Especiales",
+      titulo_seccion_promos: "Promociones",
+      titulo_seccion_destacados: "Productos Destacados"
     })
   }
 
@@ -428,22 +432,57 @@ export function ConfiguracionWebComponent({
                   </div>
                 </div>
 
-                {/* Campo para título de sección de combos */}
-                {formData.combos && (
+                {/* Campos para títulos de secciones */}
+                <div className="space-y-4">
+                  <h4 className="text-md font-semibold">Títulos de Secciones</h4>
+
+                  {/* Campo para título de sección de combos */}
+                  {formData.combos && (
+                    <div className="space-y-2">
+                      <Label htmlFor="titulo_seccion_combos">Título de la sección de combos</Label>
+                      <Input
+                        id="titulo_seccion_combos"
+                        value={formData.titulo_seccion_combos}
+                        onChange={(e) => handleInputChange('titulo_seccion_combos', e.target.value)}
+                        placeholder="Ej: Combos Especiales, Ofertas Combo, etc."
+                        maxLength={50}
+                      />
+                      <p className="text-xs text-gray-500">
+                        Este será el título que aparecerá en la sección de combos del sitio web
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Campo para título de sección de promociones */}
                   <div className="space-y-2">
-                    <Label htmlFor="titulo_seccion_combos">Título de la sección de combos</Label>
+                    <Label htmlFor="titulo_seccion_promos">Título de la sección de promociones</Label>
                     <Input
-                      id="titulo_seccion_combos"
-                      value={formData.titulo_seccion_combos}
-                      onChange={(e) => handleInputChange('titulo_seccion_combos', e.target.value)}
-                      placeholder="Ej: Combos Especiales, Ofertas Combo, etc."
+                      id="titulo_seccion_promos"
+                      value={formData.titulo_seccion_promos}
+                      onChange={(e) => handleInputChange('titulo_seccion_promos', e.target.value)}
+                      placeholder="Ej: Promociones, Ofertas Especiales, etc."
                       maxLength={50}
                     />
                     <p className="text-xs text-gray-500">
-                      Este será el título que aparecerá en la sección de combos del sitio web
+                      Este será el título que aparecerá en la sección de promociones del sitio web
                     </p>
                   </div>
-                )}
+
+                  {/* Campo para título de sección de destacados */}
+                  <div className="space-y-2">
+                    <Label htmlFor="titulo_seccion_destacados">Título de la sección de productos destacados</Label>
+                    <Input
+                      id="titulo_seccion_destacados"
+                      value={formData.titulo_seccion_destacados}
+                      onChange={(e) => handleInputChange('titulo_seccion_destacados', e.target.value)}
+                      placeholder="Ej: Productos Destacados, Lo Más Vendido, etc."
+                      maxLength={50}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Este será el título que aparecerá en la sección de productos destacados del sitio web
+                    </p>
+                  </div>
+                </div>
 
                 <div className="space-y-3">
                 </div>
@@ -473,6 +512,8 @@ export function ConfiguracionWebComponent({
                     {formData.combos && (
                       <p><strong>Título sección combos:</strong> "{formData.titulo_seccion_combos}"</p>
                     )}
+                    <p><strong>Título sección promociones:</strong> "{formData.titulo_seccion_promos}"</p>
+                    <p><strong>Título sección destacados:</strong> "{formData.titulo_seccion_destacados}"</p>
                   </div>
                 </div>
               </div>
