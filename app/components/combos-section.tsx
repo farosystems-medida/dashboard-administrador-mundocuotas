@@ -204,6 +204,13 @@ export const CombosSection = React.memo(({
     setCurrentImageIndex(0)
     setProductSearchTerm("")
     setShowProductSuggestions(false)
+
+    // Limpiar el campo de URL de imagen también
+    const imageUrlInput = document.getElementById('image-url-input') as HTMLInputElement
+    if (imageUrlInput) {
+      imageUrlInput.value = ''
+    }
+
     console.log('✅ Formulario reseteado')
   }
 
@@ -890,7 +897,7 @@ export const CombosSection = React.memo(({
                       {/* Sección de imágenes del combo */}
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <Label>Imágenes del Combo</Label>
+                          <Label>Imágenes del Combo ({formData.imagenes.length}/5)</Label>
                           {formData.imagenes.length > 0 && (
                             <Button
                               type="button"
@@ -907,127 +914,243 @@ export const CombosSection = React.memo(({
                             </Button>
                           )}
                         </div>
-                        
-                        {/* Vista previa de imágenes con navegación */}
+
+                        {/* Lista de URLs de imágenes para editar */}
+                        {formData.imagenes.length > 0 && (
+                          <div className="space-y-2">
+                            <Label className="text-sm">URLs de imágenes (puedes editarlas directamente):</Label>
+                            {formData.imagenes.map((url, index) => (
+                              <div key={index} className="flex items-center space-x-2 p-2 border rounded-lg bg-gray-50">
+                                <div className="flex-shrink-0">
+                                  <div className="w-12 h-12 bg-gray-200 rounded overflow-hidden border">
+                                    <img
+                                      src={url}
+                                      alt={`Imagen ${index + 1}`}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.currentTarget.src = '/placeholder.jpg'
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex-1">
+                                  <Input
+                                    value={url}
+                                    onChange={(e) => {
+                                      const newImages = [...formData.imagenes]
+                                      newImages[index] = e.target.value
+                                      setFormData({ ...formData, imagenes: newImages })
+                                    }}
+                                    placeholder="URL de la imagen"
+                                    disabled={isCreating}
+                                    className="text-sm"
+                                  />
+                                </div>
+                                <div className="flex space-x-1">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentImageIndex(index)}
+                                    disabled={isCreating}
+                                    className="h-8 w-8 p-0"
+                                    title="Ver vista previa"
+                                  >
+                                    👁️
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={async () => {
+                                      // Eliminar imagen del storage si es de Supabase
+                                      if (url.includes('supabase.co')) {
+                                        try {
+                                          const filePath = extractFilePathFromUrl(url)
+                                          console.log('Eliminando imagen de Supabase:', filePath)
+
+                                          const { error } = await supabase.storage
+                                            .from('imagenes')
+                                            .remove([filePath])
+
+                                          if (error) {
+                                            console.error('Error eliminando imagen del storage:', error)
+                                          }
+                                        } catch (error) {
+                                          console.error('Error al eliminar imagen:', error)
+                                        }
+                                      }
+
+                                      const newImages = formData.imagenes.filter((_, i) => i !== index)
+                                      setFormData({ ...formData, imagenes: newImages })
+
+                                      // Ajustar índice de vista previa
+                                      if (currentImageIndex >= newImages.length && newImages.length > 0) {
+                                        setCurrentImageIndex(newImages.length - 1)
+                                      } else if (newImages.length === 0) {
+                                        setCurrentImageIndex(0)
+                                      }
+                                    }}
+                                    disabled={isCreating}
+                                    className="h-8 w-8 p-0"
+                                    title="Eliminar imagen"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Vista previa grande de la imagen seleccionada */}
                         {formData.imagenes.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between text-sm text-gray-600">
-                              <span>Vista previa de imágenes</span>
-                              <span>{currentImageIndex + 1} de {formData.imagenes.length}</span>
+                              <span>Vista previa de imagen {currentImageIndex + 1}</span>
+                              {formData.imagenes.length > 1 && (
+                                <div className="flex items-center space-x-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setCurrentImageIndex(prev =>
+                                        prev === 0 ? formData.imagenes.length - 1 : prev - 1
+                                      )
+                                    }}
+                                    disabled={isCreating}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <ChevronLeft className="h-3 w-3" />
+                                  </Button>
+                                  <span className="text-xs">{currentImageIndex + 1}/{formData.imagenes.length}</span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setCurrentImageIndex(prev =>
+                                        prev === formData.imagenes.length - 1 ? 0 : prev + 1
+                                      )
+                                    }}
+                                    disabled={isCreating}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <ChevronRight className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
                             </div>
-                            
+
                             <div className="relative">
                               <div className="aspect-square w-full max-w-xs mx-auto bg-gray-100 rounded-lg overflow-hidden border">
                                 <img
                                   src={formData.imagenes[currentImageIndex]}
-                                  alt={`Imagen ${currentImageIndex + 1}`}
+                                  alt={`Vista previa ${currentImageIndex + 1}`}
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
                                     e.currentTarget.src = '/placeholder.jpg'
                                   }}
                                 />
                               </div>
-                              
-                              {/* Botón eliminar imagen actual */}
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="sm"
-                                className="absolute top-2 right-2 h-8 w-8 p-0"
-                                onClick={async () => {
-                                  const imageUrl = formData.imagenes[currentImageIndex]
-                                  
-                                  // Eliminar imagen del storage si es de Supabase
-                                  if (imageUrl.includes('supabase.co')) {
-                                    try {
-                                      const filePath = extractFilePathFromUrl(imageUrl)
-                                      console.log('Eliminando imagen de Supabase:', filePath)
-                                      
-                                      const { error } = await supabase.storage
-                                        .from('imagenes')
-                                        .remove([filePath])
-                                      
-                                      if (error) {
-                                        console.error('Error eliminando imagen del storage:', error)
-                                      }
-                                    } catch (error) {
-                                      console.error('Error al eliminar imagen:', error)
-                                    }
-                                  }
-                                  
-                                  // Eliminar de la lista
-                                  const newImages = formData.imagenes.filter((_, i) => i !== currentImageIndex)
-                                  setFormData({ ...formData, imagenes: newImages })
-                                  
-                                  // Ajustar índice
-                                  if (currentImageIndex >= newImages.length && newImages.length > 0) {
-                                    setCurrentImageIndex(newImages.length - 1)
-                                  } else if (newImages.length === 0) {
-                                    setCurrentImageIndex(0)
-                                  }
-                                }}
-                                disabled={isCreating}
-                                title="Eliminar imagen actual"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                              
-                              {formData.imagenes.length > 1 && (
-                                <>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
-                                    onClick={() => {
-                                      setCurrentImageIndex(prev => 
-                                        prev === 0 ? formData.imagenes.length - 1 : prev - 1
-                                      )
-                                    }}
-                                    disabled={isCreating}
-                                  >
-                                    <ChevronLeft className="h-4 w-4" />
-                                  </Button>
-                                  
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
-                                    onClick={() => {
-                                      setCurrentImageIndex(prev => 
-                                        prev === formData.imagenes.length - 1 ? 0 : prev + 1
-                                      )
-                                    }}
-                                    disabled={isCreating}
-                                  >
-                                    <ChevronRight className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              )}
                             </div>
-                            
-                            {formData.imagenes.length > 1 && (
-                              <div className="flex justify-center space-x-1">
-                                {formData.imagenes.map((_, index) => (
-                                  <button
-                                    key={index}
-                                    type="button"
-                                    className={`w-2 h-2 rounded-full ${
-                                      index === currentImageIndex ? 'bg-blue-500' : 'bg-gray-300'
-                                    }`}
-                                    onClick={() => setCurrentImageIndex(index)}
-                                    disabled={isCreating}
-                                  />
-                                ))}
-                              </div>
-                            )}
                           </div>
                         )}
-                        
+
+                        {/* Campo para agregar nueva URL */}
+                        <div className="space-y-3">
+                          <Label>Agregar nueva imagen por URL</Label>
+                          <div className="flex space-x-2">
+                            <Input
+                              placeholder="https://ejemplo.com/imagen.jpg"
+                              id="image-url-input"
+                              onKeyPress={async (e) => {
+                                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                                  e.preventDefault()
+                                  if (isCreating) return
+
+                                  const url = e.currentTarget.value.trim()
+                                  if (!url) return
+
+                                  if (formData.imagenes.length >= 5) {
+                                    alert('Ya tienes el máximo de 5 imágenes')
+                                    return
+                                  }
+
+                                  // Validar que sea una URL válida
+                                  try {
+                                    new URL(url)
+                                  } catch {
+                                    alert('Por favor ingresa una URL válida')
+                                    return
+                                  }
+
+                                  // Verificar que sea una imagen válida
+                                  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+                                  const urlLower = url.toLowerCase()
+                                  const isValidImage = imageExtensions.some(ext => urlLower.includes(ext))
+
+                                  if (!isValidImage) {
+                                    const confirmAdd = confirm('La URL no parece ser una imagen válida. ¿Deseas agregarla de todos modos?')
+                                    if (!confirmAdd) return
+                                  }
+
+                                  setFormData({ ...formData, imagenes: [...formData.imagenes, url] })
+                                  e.currentTarget.value = ''
+                                }
+                              }}
+                              disabled={isCreating || formData.imagenes.length >= 5}
+                            />
+                            <Button
+                              type="button"
+                              onClick={async () => {
+                                if (isCreating) return
+
+                                const input = document.getElementById('image-url-input') as HTMLInputElement
+                                const url = input?.value.trim()
+                                if (!url) return
+
+                                if (formData.imagenes.length >= 5) {
+                                  alert('Ya tienes el máximo de 5 imágenes')
+                                  return
+                                }
+
+                                // Validar que sea una URL válida
+                                try {
+                                  new URL(url)
+                                } catch {
+                                  alert('Por favor ingresa una URL válida')
+                                  return
+                                }
+
+                                // Verificar que sea una imagen válida
+                                const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+                                const urlLower = url.toLowerCase()
+                                const isValidImage = imageExtensions.some(ext => urlLower.includes(ext))
+
+                                if (!isValidImage) {
+                                  const confirmAdd = confirm('La URL no parece ser una imagen válida. ¿Deseas agregarla de todos modos?')
+                                  if (!confirmAdd) return
+                                }
+
+                                setFormData({ ...formData, imagenes: [...formData.imagenes, url] })
+                                input.value = ''
+                              }}
+                              disabled={isCreating || formData.imagenes.length >= 5}
+                              variant="outline"
+                            >
+                              Agregar
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            Pega la URL de una imagen y presiona Enter o haz clic en "Agregar"
+                          </p>
+                        </div>
+
                         {/* Sección de subida de imágenes */}
                         <div className="space-y-3">
-                          <Label>Subir nuevas imágenes</Label>
+                          <Label>O subir nuevas imágenes desde tu computadora</Label>
                           <div
                             className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors"
                             onDrop={async (e) => {
