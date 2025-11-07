@@ -56,7 +56,8 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
   const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set())
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState('import')
-  
+  const [overwriteImages, setOverwriteImages] = useState(false)
+
   // Configuración de lotes
   const BATCH_SIZE = 10 // Procesar 10 productos por lote
   const BATCH_DELAY = 100 // Pausa de 100ms entre lotes
@@ -223,10 +224,10 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
 
       // Verificar si el producto ya tiene imágenes
       const hasExistingImages = !!(
-        producto.imagen || 
-        producto.imagen_2 || 
-        producto.imagen_3 || 
-        producto.imagen_4 || 
+        producto.imagen ||
+        producto.imagen_2 ||
+        producto.imagen_3 ||
+        producto.imagen_4 ||
         producto.imagen_5
       )
 
@@ -240,7 +241,8 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
 
       const hasNewImages = imagenes.some(img => img && img.trim() !== '')
 
-      if (hasExistingImages) {
+      // Si tiene imágenes existentes y NO está activado "pisar imágenes", omitir
+      if (hasExistingImages && !overwriteImages) {
         return {
           codigo,
           id: producto.id,
@@ -272,9 +274,9 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
         descripcion: producto.descripcion,
         imagenes,
         found: true,
-        hasExistingImages: false,
+        hasExistingImages,
         status: 'success' as const,
-        message: 'Listo para procesar'
+        message: overwriteImages && hasExistingImages ? 'Listo para pisar imágenes existentes' : 'Listo para procesar'
       }
     })
   }
@@ -361,6 +363,7 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
     setTotalBatches(0)
     setSelectedProductIds(new Set())
     setSearchTerm('')
+    setOverwriteImages(false)
     const fileInput = document.getElementById('file-input') as HTMLInputElement
     if (fileInput) fileInput.value = ''
   }
@@ -414,8 +417,25 @@ export function ImageImporter({ onUpdateProducto, productos }: ImageImporterProp
                     <div><strong>Codigo</strong> - Código del producto (requerido)</div>
                     <div><strong>imagen, imagen_2, imagen_3, imagen_4, imagen_5</strong> - URLs de imágenes (opcional)</div>
                   </div>
-                  <div className="mt-2 text-xs text-blue-600">
-                    ⚠️ Solo se cargarán imágenes en productos que NO tengan imágenes previamente
+                </div>
+
+                <div className="flex items-center space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <Checkbox
+                    id="overwrite-images"
+                    checked={overwriteImages}
+                    onCheckedChange={(checked) => setOverwriteImages(checked as boolean)}
+                    disabled={isProcessing}
+                  />
+                  <div>
+                    <Label htmlFor="overwrite-images" className="text-sm font-medium text-amber-900 cursor-pointer">
+                      ¿Pisar imágenes existentes?
+                    </Label>
+                    <p className="text-xs text-amber-700 mt-1">
+                      {overwriteImages
+                        ? '✓ Se reemplazarán las imágenes de productos que ya tengan imágenes'
+                        : '✗ Solo se cargarán imágenes en productos sin imágenes previas'
+                      }
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
