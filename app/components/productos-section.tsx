@@ -1447,13 +1447,16 @@ export const ProductosSection = React.memo(({
                   <TableCell>{producto.marca?.descripcion || '-'}</TableCell>
                   <TableCell>{formatPrice(producto.precio)}</TableCell>
                   <TableCell>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        producto.destacado ? "bg-yellow-100 text-yellow-800" : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {producto.destacado ? "Destacado" : "Normal"}
-                    </span>
+                    <Switch
+                      checked={producto.destacado ?? false}
+                      onCheckedChange={async (checked) => {
+                        try {
+                          await onUpdateProducto(producto.id, { destacado: checked })
+                        } catch (error) {
+                          console.error('Error al actualizar destacado:', error)
+                        }
+                      }}
+                    />
                   </TableCell>
                       <TableCell>
                         <span
