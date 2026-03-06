@@ -17,6 +17,7 @@ export interface Categoria {
   id: number
   descripcion: string
   fk_id_linea?: number
+  imagen_url?: string
   created_at: string
   linea?: Linea
 }

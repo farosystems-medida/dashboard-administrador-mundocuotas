@@ -29,12 +29,14 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
   const [formData, setFormData] = useState({
     descripcion: "",
     fk_id_linea: undefined as number | undefined,
+    imagen_url: "",
   })
 
   const resetForm = () => {
     setFormData({
       descripcion: "",
       fk_id_linea: undefined,
+      imagen_url: "",
     })
     setEditingCategoria(null)
   }
@@ -45,6 +47,7 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
     const categoriaData = {
       descripcion: formData.descripcion,
       fk_id_linea: formData.fk_id_linea,
+      imagen_url: formData.imagen_url || undefined,
     }
 
     try {
@@ -65,6 +68,7 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
     setFormData({
       descripcion: categoria.descripcion,
       fk_id_linea: categoria.fk_id_linea,
+      imagen_url: categoria.imagen_url || "",
     })
     setIsDialogOpen(true)
   }
@@ -134,11 +138,11 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
               </div>
               <div>
                 <Label htmlFor="linea">Línea (Opcional)</Label>
-                <Select 
-                  value={formData.fk_id_linea?.toString() || "none"} 
-                  onValueChange={(value) => setFormData({ 
-                    ...formData, 
-                    fk_id_linea: value === "none" ? undefined : parseInt(value) 
+                <Select
+                  value={formData.fk_id_linea?.toString() || "none"}
+                  onValueChange={(value) => setFormData({
+                    ...formData,
+                    fk_id_linea: value === "none" ? undefined : parseInt(value)
                   })}
                 >
                   <SelectTrigger>
@@ -154,6 +158,16 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label htmlFor="imagen_url">URL de Imagen (Opcional)</Label>
+                <Input
+                  id="imagen_url"
+                  type="url"
+                  placeholder="https://ejemplo.com/imagen.jpg"
+                  value={formData.imagen_url}
+                  onChange={(e) => setFormData({ ...formData, imagen_url: e.target.value })}
+                />
+              </div>
               <Button type="submit" className="w-full">
                 {editingCategoria ? "Actualizar" : "Crear"} Categoría
               </Button>
@@ -166,6 +180,7 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
           <TableHeader>
             <TableRow>
               <TableHead>ID</TableHead>
+              <TableHead>Imagen</TableHead>
               <TableHead>Descripción</TableHead>
               <TableHead>Línea</TableHead>
               <TableHead>Fecha de Creación</TableHead>
@@ -176,6 +191,22 @@ export function CategoriasSection({ categorias, lineas, onCreateCategoria, onUpd
             {categorias.map((categoria) => (
               <TableRow key={categoria.id}>
                 <TableCell>{categoria.id}</TableCell>
+                <TableCell>
+                  {categoria.imagen_url ? (
+                    <img
+                      src={categoria.imagen_url}
+                      alt={categoria.descripcion}
+                      className="w-16 h-16 object-cover rounded"
+                      onError={(e) => {
+                        e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"%3E%3Crect x="3" y="3" width="18" height="18" rx="2" ry="2"%3E%3C/rect%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"%3E%3C/circle%3E%3Cpolyline points="21 15 16 10 5 21"%3E%3C/polyline%3E%3C/svg%3E'
+                      }}
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">
+                      Sin imagen
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell className="font-medium">{categoria.descripcion}</TableCell>
                 <TableCell>{categoria.linea?.descripcion || "Sin línea"}</TableCell>
                 <TableCell>{new Date(categoria.created_at).toLocaleDateString('es-AR')}</TableCell>
