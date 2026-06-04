@@ -165,6 +165,33 @@ export interface ConfiguracionZona {
   zona?: Zona
 }
 
+// Tipos para promociones
+export interface Promocion {
+  id: number
+  nombre: string
+  descripcion?: string
+  slug: string
+  imagen?: string
+  fecha_vigencia_inicio?: string
+  fecha_vigencia_fin?: string
+  activo: boolean
+  created_at: string
+  updated_at: string
+  items?: PromocionItem[]
+}
+
+// Tipos para los items de una promoción
+export interface PromocionItem {
+  id: number
+  fk_id_promocion: number
+  fk_id_producto: number
+  descuento_porcentaje?: number | null
+  precio_promocional?: number | null
+  created_at: string
+  producto?: Producto
+  promocion?: Promocion
+}
+
 // Tipo para la configuración web
 export interface ConfiguracionWeb {
   id: number

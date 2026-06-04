@@ -1,6 +1,6 @@
 "use client"
 
-import { Package, CreditCard, Link2, BarChart3, Tag, Award, Settings, MapPin, Layers, PackageOpen } from "lucide-react"
+import { Package, CreditCard, Link2, BarChart3, Tag, Award, Settings, MapPin, Layers, PackageOpen, Percent } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -29,6 +29,11 @@ const menuItems = [
     title: "Combos",
     icon: PackageOpen,
     url: "#combos",
+  },
+  {
+    title: "Promociones",
+    icon: Percent,
+    url: "#promociones",
   },
   {
     title: "Líneas",

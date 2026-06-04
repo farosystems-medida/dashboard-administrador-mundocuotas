@@ -5,6 +5,7 @@ import { AppSidebar } from "./components/app-sidebar"
 import { DashboardSection } from "./components/dashboard-section"
 import { ProductosSection } from "./components/productos-section"
 import { CombosSection } from "./components/combos-section"
+import { PromocionesSection } from "./components/promociones-section"
 import { LineasSection } from "./components/lineas-section"
 import { CategoriasSection } from "./components/categorias-section"
 import { MarcasSection } from "./components/marcas-section"
@@ -134,6 +135,8 @@ function Dashboard() {
         return "Productos"
       case "combos":
         return "Combos"
+      case "promociones":
+        return "Promociones"
       case "lineas":
         return "Líneas"
       case "categorias":
@@ -191,6 +194,12 @@ function Dashboard() {
             productos={productos}
             categorias={categorias}
             planes={planes}
+          />
+        )
+      case "promociones":
+        return (
+          <PromocionesSection
+            productos={productos}
           />
         )
       case "lineas":
