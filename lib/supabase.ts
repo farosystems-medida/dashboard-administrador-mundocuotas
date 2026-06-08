@@ -172,6 +172,7 @@ export interface Promocion {
   descripcion?: string
   slug: string
   imagen?: string
+  imagen_mobile?: string
   fecha_vigencia_inicio?: string
   fecha_vigencia_fin?: string
   activo: boolean

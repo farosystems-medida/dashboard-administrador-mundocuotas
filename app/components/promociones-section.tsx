@@ -31,7 +31,7 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
   const [filterEstado, setFilterEstado] = useState("all")
   const [productSearchTerm, setProductSearchTerm] = useState("")
   const [showProductSuggestions, setShowProductSuggestions] = useState(false)
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [uploadingField, setUploadingField] = useState<null | "imagen" | "imagen_mobile">(null)
   const itemsPerPage = 10
 
   const [formData, setFormData] = useState({
@@ -39,6 +39,7 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
     descripcion: "",
     slug: "",
     imagen: "",
+    imagen_mobile: "",
     fecha_vigencia_inicio: "",
     fecha_vigencia_fin: "",
     activo: true,
@@ -110,7 +111,7 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
   }, [])
 
   const resetForm = () => {
-    setFormData({ nombre: "", descripcion: "", slug: "", imagen: "", fecha_vigencia_inicio: "", fecha_vigencia_fin: "", activo: true })
+    setFormData({ nombre: "", descripcion: "", slug: "", imagen: "", imagen_mobile: "", fecha_vigencia_inicio: "", fecha_vigencia_fin: "", activo: true })
     setSelectedItems([])
     setEditingPromocion(null)
     setProductSearchTerm("")
@@ -124,6 +125,7 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
       descripcion: promocion.descripcion || "",
       slug: promocion.slug || "",
       imagen: promocion.imagen || "",
+      imagen_mobile: promocion.imagen_mobile || "",
       fecha_vigencia_inicio: promocion.fecha_vigencia_inicio || "",
       fecha_vigencia_fin: promocion.fecha_vigencia_fin || "",
       activo: promocion.activo ?? true,
@@ -147,6 +149,7 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
         descripcion: formData.descripcion || null,
         slug: formData.slug || null,
         imagen: formData.imagen || null,
+        imagen_mobile: formData.imagen_mobile || null,
         fecha_vigencia_inicio: formData.fecha_vigencia_inicio || null,
         fecha_vigencia_fin: formData.fecha_vigencia_fin || null,
         activo: formData.activo,
@@ -155,9 +158,12 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
       let promoId: number
 
       if (editingPromocion) {
-        // Si cambió la imagen, eliminar la anterior del storage
+        // Si cambió alguna imagen, eliminar la anterior del storage
         if (editingPromocion.imagen && editingPromocion.imagen !== formData.imagen) {
           await deleteImageFromStorage(editingPromocion.imagen)
+        }
+        if (editingPromocion.imagen_mobile && editingPromocion.imagen_mobile !== formData.imagen_mobile) {
+          await deleteImageFromStorage(editingPromocion.imagen_mobile)
         }
 
         const { error } = await supabase
@@ -206,6 +212,9 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
       if (promocionToDelete.imagen) {
         await deleteImageFromStorage(promocionToDelete.imagen)
       }
+      if (promocionToDelete.imagen_mobile) {
+        await deleteImageFromStorage(promocionToDelete.imagen_mobile)
+      }
       const { error } = await supabase.from("promociones").delete().eq("id", promocionToDelete.id)
       if (error) throw error
       await loadPromociones()
@@ -240,10 +249,10 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
     }
   }
 
-  const handleImageUpload = async (file: File) => {
+  const handleImageUpload = async (file: File, field: "imagen" | "imagen_mobile") => {
     if (!file.type.startsWith("image/")) { alert("Solo se permiten imágenes"); return }
     if (file.size > 5 * 1024 * 1024) { alert("El archivo supera el límite de 5MB"); return }
-    setIsUploadingImage(true)
+    setUploadingField(field)
     try {
       const fileExt = file.name.split(".").pop()
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
@@ -251,12 +260,12 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
       const { error } = await supabase.storage.from("imagenes").upload(filePath, file, { cacheControl: "3600", upsert: false })
       if (error) throw error
       const { data: { publicUrl } } = supabase.storage.from("imagenes").getPublicUrl(filePath)
-      setFormData((prev) => ({ ...prev, imagen: publicUrl }))
+      setFormData((prev) => ({ ...prev, [field]: publicUrl }))
     } catch (error) {
       console.error("Error al subir imagen:", error)
       alert("Error al subir la imagen")
     } finally {
-      setIsUploadingImage(false)
+      setUploadingField(null)
     }
   }
 
@@ -274,6 +283,106 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
 
   const updateItemDiscount = (productId: number, value: string) => {
     setSelectedItems(selectedItems.map((i) => (i.id === productId ? { ...i, descuento_porcentaje: value } : i)))
+  }
+
+  const renderImageUploader = (
+    field: "imagen" | "imagen_mobile",
+    label: string,
+    inputId: string,
+    placeholder: string
+  ) => {
+    const value = formData[field]
+    const isUploading = uploadingField === field
+
+    return (
+      <div className="space-y-3">
+        <Label>{label}</Label>
+
+        {/* Vista previa + botón quitar */}
+        {value && (
+          <div className="relative w-full max-w-sm">
+            <div className="h-40 rounded-lg overflow-hidden border">
+              <img
+                src={value}
+                alt="Vista previa"
+                className="w-full h-full object-cover"
+                onError={(e) => { e.currentTarget.src = "/placeholder.jpg" }}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="absolute top-2 right-2 h-7 w-7 p-0"
+              onClick={async () => {
+                await deleteImageFromStorage(value)
+                setFormData((prev) => ({ ...prev, [field]: "" }))
+              }}
+              disabled={isSaving || isUploading}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* URL manual */}
+        <div>
+          <Label className="text-xs text-gray-500 mb-1 block">Pegar URL de imagen</Label>
+          <Input
+            value={value}
+            onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
+            disabled={isSaving || isUploading}
+            placeholder={placeholder}
+          />
+        </div>
+
+        {/* Upload desde PC */}
+        <div>
+          <Label className="text-xs text-gray-500 mb-1 block">O subir desde tu computadora</Label>
+          <div
+            className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors"
+            onDrop={async (e) => {
+              e.preventDefault()
+              if (isSaving || isUploading) return
+              const file = e.dataTransfer.files[0]
+              if (file) await handleImageUpload(file, field)
+            }}
+            onDragOver={(e) => e.preventDefault()}
+          >
+            <input
+              type="file"
+              accept="image/*"
+              id={inputId}
+              className="hidden"
+              disabled={isSaving || isUploading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (file) await handleImageUpload(file, field)
+                e.target.value = ""
+              }}
+            />
+            <label htmlFor={inputId} className="cursor-pointer">
+              <div className="flex flex-col items-center space-y-2">
+                {isUploading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+                    <p className="text-sm text-gray-500">Subiendo imagen...</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-6 w-6 text-gray-400" />
+                    <p className="text-sm font-medium text-gray-700">
+                      Arrastrá una imagen o hacé clic para seleccionar
+                    </p>
+                    <p className="text-xs text-gray-500">PNG, JPG, GIF — máx. 5MB</p>
+                  </>
+                )}
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const filteredProductSuggestions = useMemo(() => {
@@ -388,94 +497,11 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
                       />
                     </div>
 
-                    {/* Imagen */}
-                    <div className="space-y-3">
-                      <Label>Imagen</Label>
+                    {/* Imagen banner desktop */}
+                    {renderImageUploader("imagen", "Imagen (banner desktop)", "promo-image-upload", "https://ejemplo.com/banner-promo.jpg")}
 
-                      {/* Vista previa + botón quitar */}
-                      {formData.imagen && (
-                        <div className="relative w-full max-w-sm">
-                          <div className="h-40 rounded-lg overflow-hidden border">
-                            <img
-                              src={formData.imagen}
-                              alt="Vista previa"
-                              className="w-full h-full object-cover"
-                              onError={(e) => { e.currentTarget.src = "/placeholder.jpg" }}
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            className="absolute top-2 right-2 h-7 w-7 p-0"
-                            onClick={async () => {
-                              await deleteImageFromStorage(formData.imagen)
-                              setFormData((prev) => ({ ...prev, imagen: "" }))
-                            }}
-                            disabled={isSaving || isUploadingImage}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* URL manual */}
-                      <div>
-                        <Label className="text-xs text-gray-500 mb-1 block">Pegar URL de imagen</Label>
-                        <Input
-                          value={formData.imagen}
-                          onChange={(e) => setFormData({ ...formData, imagen: e.target.value })}
-                          disabled={isSaving || isUploadingImage}
-                          placeholder="https://ejemplo.com/banner-promo.jpg"
-                        />
-                      </div>
-
-                      {/* Upload desde PC */}
-                      <div>
-                        <Label className="text-xs text-gray-500 mb-1 block">O subir desde tu computadora</Label>
-                        <div
-                          className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors"
-                          onDrop={async (e) => {
-                            e.preventDefault()
-                            if (isSaving || isUploadingImage) return
-                            const file = e.dataTransfer.files[0]
-                            if (file) await handleImageUpload(file)
-                          }}
-                          onDragOver={(e) => e.preventDefault()}
-                        >
-                          <input
-                            type="file"
-                            accept="image/*"
-                            id="promo-image-upload"
-                            className="hidden"
-                            disabled={isSaving || isUploadingImage}
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0]
-                              if (file) await handleImageUpload(file)
-                              e.target.value = ""
-                            }}
-                          />
-                          <label htmlFor="promo-image-upload" className="cursor-pointer">
-                            <div className="flex flex-col items-center space-y-2">
-                              {isUploadingImage ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
-                                  <p className="text-sm text-gray-500">Subiendo imagen...</p>
-                                </>
-                              ) : (
-                                <>
-                                  <Upload className="h-6 w-6 text-gray-400" />
-                                  <p className="text-sm font-medium text-gray-700">
-                                    Arrastrá una imagen o hacé clic para seleccionar
-                                  </p>
-                                  <p className="text-xs text-gray-500">PNG, JPG, GIF — máx. 5MB</p>
-                                </>
-                              )}
-                            </div>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
+                    {/* Imagen banner mobile */}
+                    {renderImageUploader("imagen_mobile", "Imagen (banner mobile)", "promo-image-mobile-upload", "https://ejemplo.com/banner-promo-mobile.jpg")}
 
                     {/* Fechas */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
