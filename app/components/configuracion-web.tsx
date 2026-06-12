@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Monitor, Smartphone, Save, Palette, Type, Layout, Upload, Home, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,6 +18,47 @@ interface ConfiguracionWebProps {
   planes?: PlanFinanciacion[]
   categorias?: Categoria[]
   marcas?: Marca[]
+}
+
+// Fuentes gratuitas de Google Fonts disponibles para el título de las secciones
+const GOOGLE_FONTS = [
+  { name: "Inter", value: "Inter, sans-serif" },
+  { name: "Roboto", value: "Roboto, sans-serif" },
+  { name: "Open Sans", value: "'Open Sans', sans-serif" },
+  { name: "Poppins", value: "Poppins, sans-serif" },
+  { name: "Montserrat", value: "Montserrat, sans-serif" },
+  { name: "Lato", value: "Lato, sans-serif" },
+  { name: "Nunito", value: "Nunito, sans-serif" },
+  { name: "Raleway", value: "Raleway, sans-serif" },
+  { name: "Oswald", value: "Oswald, sans-serif" },
+  { name: "Work Sans", value: "'Work Sans', sans-serif" },
+  { name: "Quicksand", value: "Quicksand, sans-serif" },
+  { name: "Rubik", value: "Rubik, sans-serif" },
+  { name: "Source Sans Pro", value: "'Source Sans Pro', sans-serif" },
+  { name: "DM Sans", value: "'DM Sans', sans-serif" },
+  { name: "Manrope", value: "Manrope, sans-serif" },
+  { name: "Playfair Display", value: "'Playfair Display', serif" },
+  { name: "Merriweather", value: "Merriweather, serif" },
+  { name: "Bebas Neue", value: "'Bebas Neue', sans-serif" },
+]
+
+// Carga (o reemplaza) el <link> de Google Fonts para previsualizar la tipografía elegida
+const loadGoogleFont = (fontFamily: string, linkId: string) => {
+  if (typeof document === "undefined") return
+  const fontName = fontFamily.split(",")[0].trim().replace(/['"]/g, "")
+  const href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;500;600;700&display=swap`
+
+  const existing = document.getElementById(linkId) as HTMLLinkElement | null
+  if (existing) {
+    if (existing.href !== href) existing.href = href
+    return
+  }
+
+  const link = document.createElement("link")
+  link.id = linkId
+  link.rel = "stylesheet"
+  link.href = href
+  document.head.appendChild(link)
 }
 
 export function ConfiguracionWebComponent({ 
@@ -66,8 +107,16 @@ export function ConfiguracionWebComponent({
     titulo_seccion_combos: configuracionWeb?.titulo_seccion_combos || "Combos Especiales",
     combos_subtitulo: configuracionWeb?.combos_subtitulo || "",
     titulo_seccion_promos: configuracionWeb?.titulo_seccion_promos || "Promociones",
-    titulo_seccion_destacados: configuracionWeb?.titulo_seccion_destacados || "Productos Destacados"
+    titulo_seccion_destacados: configuracionWeb?.titulo_seccion_destacados || "Productos Destacados",
+
+    // Tipografía de los títulos de sección
+    font_family_primary: configuracionWeb?.font_family_primary || "Inter, sans-serif",
   })
+
+  // Precarga la fuente elegida para que la vista previa se vea correctamente
+  useEffect(() => {
+    loadGoogleFont(formData.font_family_primary, "google-font-preview")
+  }, [formData.font_family_primary])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -115,7 +164,8 @@ export function ConfiguracionWebComponent({
       titulo_seccion_combos: "Combos Especiales",
       combos_subtitulo: "",
       titulo_seccion_promos: "Promociones",
-      titulo_seccion_destacados: "Productos Destacados"
+      titulo_seccion_destacados: "Productos Destacados",
+      font_family_primary: "Inter, sans-serif"
     })
   }
 
@@ -437,6 +487,35 @@ export function ConfiguracionWebComponent({
                 {/* Campos para títulos de secciones */}
                 <div className="space-y-4">
                   <h4 className="text-md font-semibold">Títulos de Secciones</h4>
+
+                  {/* Tipografía de los títulos de sección */}
+                  <div className="space-y-2">
+                    <Label htmlFor="font_family_primary">Tipografía de los títulos de secciones</Label>
+                    <Select
+                      value={formData.font_family_primary}
+                      onValueChange={(value) => handleInputChange('font_family_primary', value)}
+                    >
+                      <SelectTrigger id="font_family_primary">
+                        <SelectValue placeholder="Seleccionar fuente..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GOOGLE_FONTS.map((font) => (
+                          <SelectItem key={font.value} value={font.value}>
+                            {font.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500">
+                      Se aplica al título de todas las secciones del sitio (destacados, promociones, combos, etc.)
+                    </p>
+                    <div
+                      className="border rounded-lg p-4 text-2xl font-bold"
+                      style={{ fontFamily: formData.font_family_primary }}
+                    >
+                      Vista previa: Productos Destacados
+                    </div>
+                  </div>
 
                   {/* Campo para título de sección de combos */}
                   {formData.combos && (
