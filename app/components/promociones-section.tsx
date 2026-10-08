@@ -446,8 +446,8 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
                 </Button>
               </DialogTrigger>
 
-              <DialogContent className="w-[90vw] max-w-6xl max-h-[90vh] overflow-y-auto" showCloseButton={false}>
-                <div>
+              <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[90vh] grid-cols-1 overflow-y-auto overflow-x-hidden" showCloseButton={false}>
+                <div className="min-w-0">
                   <DialogHeader>
                     <DialogTitle>{editingPromocion ? "Editar Promoción" : "Nueva Promoción"}</DialogTitle>
                     <Button
