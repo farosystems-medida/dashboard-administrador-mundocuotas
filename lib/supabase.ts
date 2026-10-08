@@ -173,6 +173,7 @@ export interface Promocion {
   slug: string
   imagen?: string
   imagen_mobile?: string
+  imagen_banner?: string
   fecha_vigencia_inicio?: string
   fecha_vigencia_fin?: string
   activo: boolean
@@ -251,4 +252,9 @@ export interface ConfiguracionWeb {
   combos_subtitulo?: string
   titulo_seccion_promos?: string
   titulo_seccion_destacados?: string
+
+  // Imágenes del sitio (bucket "imagenes")
+  imagen_hero?: string
+  imagen_destacados?: string
+  imagen_banner_promociones?: string
 } 

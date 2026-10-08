@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Monitor, Smartphone, Save, Palette, Type, Layout, Upload, Home, Settings } from "lucide-react"
+import { Monitor, Smartphone, Save, Palette, Type, Layout, Upload, Home, Settings, Image as ImageIcon, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { ConfiguracionWeb, PlanFinanciacion, Categoria, Marca } from "@/lib/supabase"
+import { ConfiguracionWeb, PlanFinanciacion, Categoria, Marca, supabase } from "@/lib/supabase"
 
 interface ConfiguracionWebProps {
   configuracionWeb?: ConfiguracionWeb
@@ -59,6 +59,143 @@ const loadGoogleFont = (fontFamily: string, linkId: string) => {
   link.rel = "stylesheet"
   link.href = href
   document.head.appendChild(link)
+}
+
+const IMAGE_FIELDS = ["imagen_hero", "imagen_destacados", "imagen_banner_promociones"] as const
+
+const isStorageImage = (imageUrl: string) => imageUrl.includes("supabase.co") && imageUrl.includes("/imagenes/")
+
+// Extrae el path dentro del bucket "imagenes" a partir de la URL pública
+const extractFilePathFromUrl = (imageUrl: string): string => {
+  const pathParts = new URL(imageUrl).pathname.split("/")
+  const imagenesIndex = pathParts.findIndex((part) => part === "imagenes")
+  return pathParts.slice(imagenesIndex + 1).join("/")
+}
+
+const deleteImageFromStorage = async (imageUrl: string) => {
+  if (!isStorageImage(imageUrl)) return
+  try {
+    await supabase.storage.from("imagenes").remove([extractFilePathFromUrl(imageUrl)])
+  } catch (error) {
+    console.error("Error eliminando imagen del storage:", error)
+  }
+}
+
+const uploadImageToStorage = async (file: File): Promise<string> => {
+  const fileExt = file.name.split(".").pop()
+  const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+  const filePath = `configuracion/${fileName}`
+  const { error } = await supabase.storage.from("imagenes").upload(filePath, file, { cacheControl: "3600", upsert: false })
+  if (error) throw error
+  const { data: { publicUrl } } = supabase.storage.from("imagenes").getPublicUrl(filePath)
+  return publicUrl
+}
+
+interface WebImageUploaderProps {
+  id: string
+  label: string
+  description: string
+  value: string
+  onChange: (value: string) => void
+  disabled?: boolean
+}
+
+function WebImageUploader({ id, label, description, value, onChange, disabled = false }: WebImageUploaderProps) {
+  const [isUploading, setIsUploading] = useState(false)
+
+  const handleFile = async (file?: File) => {
+    if (!file) return
+    if (!file.type.startsWith("image/")) { alert("Solo se permiten imágenes"); return }
+    if (file.size > 5 * 1024 * 1024) { alert("El archivo supera el límite de 5MB"); return }
+    setIsUploading(true)
+    try {
+      onChange(await uploadImageToStorage(file))
+    } catch (error) {
+      console.error("Error al subir imagen:", error)
+      alert("Error al subir la imagen")
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const isDisabled = disabled || isUploading
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <Label htmlFor={`${id}-url`}>{label}</Label>
+        <p className="text-xs text-gray-500">{description}</p>
+      </div>
+
+      {value && (
+        <div className="relative w-full max-w-xl">
+          <div className="h-40 rounded-lg overflow-hidden border">
+            <img
+              src={value}
+              alt={label}
+              className="w-full h-full object-cover"
+              onError={(e) => { e.currentTarget.src = "/placeholder.jpg" }}
+            />
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="absolute top-2 right-2 h-7 w-7 p-0"
+            onClick={() => onChange("")}
+            disabled={isDisabled}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      <Input
+        id={`${id}-url`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={isDisabled}
+        placeholder="Pegar URL de imagen o subir desde tu computadora"
+      />
+
+      <div
+        className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors"
+        onDrop={async (e) => {
+          e.preventDefault()
+          if (!isDisabled) await handleFile(e.dataTransfer.files[0])
+        }}
+        onDragOver={(e) => e.preventDefault()}
+      >
+        <input
+          type="file"
+          accept="image/*"
+          id={id}
+          className="hidden"
+          disabled={isDisabled}
+          onChange={async (e) => {
+            await handleFile(e.target.files?.[0])
+            e.target.value = ""
+          }}
+        />
+        <label htmlFor={id} className="cursor-pointer">
+          <div className="flex flex-col items-center space-y-2">
+            {isUploading ? (
+              <>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+                <p className="text-sm text-gray-500">Subiendo imagen...</p>
+              </>
+            ) : (
+              <>
+                <Upload className="h-6 w-6 text-gray-400" />
+                <p className="text-sm font-medium text-gray-700">Arrastrá una imagen o hacé clic para seleccionar</p>
+                <p className="text-xs text-gray-500">PNG, JPG, GIF — máx. 5MB</p>
+              </>
+            )}
+          </div>
+        </label>
+      </div>
+    </div>
+  )
 }
 
 export function ConfiguracionWebComponent({ 
@@ -111,6 +248,11 @@ export function ConfiguracionWebComponent({
 
     // Tipografía de los títulos de sección
     font_family_primary: configuracionWeb?.font_family_primary || "Inter, sans-serif",
+
+    // Imágenes del sitio
+    imagen_hero: configuracionWeb?.imagen_hero || "",
+    imagen_destacados: configuracionWeb?.imagen_destacados || "",
+    imagen_banner_promociones: configuracionWeb?.imagen_banner_promociones || "",
   })
 
   // Precarga la fuente elegida para que la vista previa se vea correctamente
@@ -123,7 +265,22 @@ export function ConfiguracionWebComponent({
     setIsLoading(true)
     
     try {
-      await onUpdateConfiguracionWeb(formData)
+      const updated = await onUpdateConfiguracionWeb({
+        ...formData,
+        imagen_hero: formData.imagen_hero || null,
+        imagen_destacados: formData.imagen_destacados || null,
+        imagen_banner_promociones: formData.imagen_banner_promociones || null,
+      } as Partial<ConfiguracionWeb>)
+
+      // Una vez guardado, eliminar del bucket las imágenes que fueron reemplazadas
+      if (updated) {
+        for (const field of IMAGE_FIELDS) {
+          const previous = configuracionWeb?.[field]
+          if (previous && previous !== formData[field]) {
+            await deleteImageFromStorage(previous)
+          }
+        }
+      }
     } catch (error) {
       console.error('Error al actualizar configuración web:', error)
     } finally {
@@ -165,7 +322,10 @@ export function ConfiguracionWebComponent({
       combos_subtitulo: "",
       titulo_seccion_promos: "Promociones",
       titulo_seccion_destacados: "Productos Destacados",
-      font_family_primary: "Inter, sans-serif"
+      font_family_primary: "Inter, sans-serif",
+      imagen_hero: "",
+      imagen_destacados: "",
+      imagen_banner_promociones: ""
     })
   }
 
@@ -190,7 +350,7 @@ export function ConfiguracionWebComponent({
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <Tabs defaultValue="desktop" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="desktop" className="flex items-center gap-2">
                 <Monitor className="h-4 w-4" />
                 Desktop
@@ -202,6 +362,10 @@ export function ConfiguracionWebComponent({
               <TabsTrigger value="home" className="flex items-center gap-2">
                 <Home className="h-4 w-4" />
                 Home Section
+              </TabsTrigger>
+              <TabsTrigger value="imagenes" className="flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" />
+                Imágenes
               </TabsTrigger>
             </TabsList>
 
@@ -619,6 +783,43 @@ export function ConfiguracionWebComponent({
                   </div>
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="imagenes" className="space-y-6 mt-6">
+              <p className="text-sm text-gray-600">
+                Las imágenes se guardan en el bucket de Supabase. Si un campo queda vacío, el sitio usa la imagen por defecto. Recordá hacer clic en "Guardar Cambios".
+              </p>
+
+              <WebImageUploader
+                id="config-imagen-hero"
+                label="Fondo de la sección principal (Hero)"
+                description="Imagen de fondo del encabezado del home."
+                value={formData.imagen_hero}
+                onChange={(value) => handleInputChange('imagen_hero', value)}
+                disabled={isLoading}
+              />
+
+              <Separator />
+
+              <WebImageUploader
+                id="config-imagen-destacados"
+                label="Fondo de la sección de productos destacados"
+                description="Imagen de fondo detrás de los productos destacados del home."
+                value={formData.imagen_destacados}
+                onChange={(value) => handleInputChange('imagen_destacados', value)}
+                disabled={isLoading}
+              />
+
+              <Separator />
+
+              <WebImageUploader
+                id="config-imagen-banner-promociones"
+                label="Banner por defecto de las páginas de promociones"
+                description="Se muestra arriba en /promociones/[slug] cuando la promoción no tiene su propia imagen de página."
+                value={formData.imagen_banner_promociones}
+                onChange={(value) => handleInputChange('imagen_banner_promociones', value)}
+                disabled={isLoading}
+              />
             </TabsContent>
 
           </Tabs>

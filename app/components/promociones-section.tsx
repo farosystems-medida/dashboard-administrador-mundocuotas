@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Promocion, Producto } from "@/lib/supabase"
 import { supabase } from "@/lib/supabase"
 
+type ImageField = "imagen" | "imagen_mobile" | "imagen_banner"
+
 interface PromocionesSectionProps {
   productos: Producto[]
 }
@@ -31,7 +33,7 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
   const [filterEstado, setFilterEstado] = useState("all")
   const [productSearchTerm, setProductSearchTerm] = useState("")
   const [showProductSuggestions, setShowProductSuggestions] = useState(false)
-  const [uploadingField, setUploadingField] = useState<null | "imagen" | "imagen_mobile">(null)
+  const [uploadingField, setUploadingField] = useState<null | ImageField>(null)
   const itemsPerPage = 10
 
   const [formData, setFormData] = useState({
@@ -40,6 +42,7 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
     slug: "",
     imagen: "",
     imagen_mobile: "",
+    imagen_banner: "",
     fecha_vigencia_inicio: "",
     fecha_vigencia_fin: "",
     activo: true,
@@ -111,7 +114,7 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
   }, [])
 
   const resetForm = () => {
-    setFormData({ nombre: "", descripcion: "", slug: "", imagen: "", imagen_mobile: "", fecha_vigencia_inicio: "", fecha_vigencia_fin: "", activo: true })
+    setFormData({ nombre: "", descripcion: "", slug: "", imagen: "", imagen_mobile: "", imagen_banner: "", fecha_vigencia_inicio: "", fecha_vigencia_fin: "", activo: true })
     setSelectedItems([])
     setEditingPromocion(null)
     setProductSearchTerm("")
@@ -126,6 +129,7 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
       slug: promocion.slug || "",
       imagen: promocion.imagen || "",
       imagen_mobile: promocion.imagen_mobile || "",
+      imagen_banner: promocion.imagen_banner || "",
       fecha_vigencia_inicio: promocion.fecha_vigencia_inicio || "",
       fecha_vigencia_fin: promocion.fecha_vigencia_fin || "",
       activo: promocion.activo ?? true,
@@ -150,6 +154,7 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
         slug: formData.slug || null,
         imagen: formData.imagen || null,
         imagen_mobile: formData.imagen_mobile || null,
+        imagen_banner: formData.imagen_banner || null,
         fecha_vigencia_inicio: formData.fecha_vigencia_inicio || null,
         fecha_vigencia_fin: formData.fecha_vigencia_fin || null,
         activo: formData.activo,
@@ -164,6 +169,9 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
         }
         if (editingPromocion.imagen_mobile && editingPromocion.imagen_mobile !== formData.imagen_mobile) {
           await deleteImageFromStorage(editingPromocion.imagen_mobile)
+        }
+        if (editingPromocion.imagen_banner && editingPromocion.imagen_banner !== formData.imagen_banner) {
+          await deleteImageFromStorage(editingPromocion.imagen_banner)
         }
 
         const { error } = await supabase
@@ -215,6 +223,9 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
       if (promocionToDelete.imagen_mobile) {
         await deleteImageFromStorage(promocionToDelete.imagen_mobile)
       }
+      if (promocionToDelete.imagen_banner) {
+        await deleteImageFromStorage(promocionToDelete.imagen_banner)
+      }
       const { error } = await supabase.from("promociones").delete().eq("id", promocionToDelete.id)
       if (error) throw error
       await loadPromociones()
@@ -249,7 +260,7 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
     }
   }
 
-  const handleImageUpload = async (file: File, field: "imagen" | "imagen_mobile") => {
+  const handleImageUpload = async (file: File, field: ImageField) => {
     if (!file.type.startsWith("image/")) { alert("Solo se permiten imágenes"); return }
     if (file.size > 5 * 1024 * 1024) { alert("El archivo supera el límite de 5MB"); return }
     setUploadingField(field)
@@ -286,7 +297,7 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
   }
 
   const renderImageUploader = (
-    field: "imagen" | "imagen_mobile",
+    field: ImageField,
     label: string,
     inputId: string,
     placeholder: string
@@ -502,6 +513,14 @@ export const PromocionesSection = React.memo(({ productos }: PromocionesSectionP
 
                     {/* Imagen banner mobile */}
                     {renderImageUploader("imagen_mobile", "Imagen (banner mobile)", "promo-image-mobile-upload", "https://ejemplo.com/banner-promo-mobile.jpg")}
+
+                    {/* Imagen del encabezado de la página de la promoción */}
+                    <div className="space-y-1">
+                      {renderImageUploader("imagen_banner", "Imagen de la página de la promoción", "promo-image-banner-upload", "https://ejemplo.com/dia-del-padre.jpg")}
+                      <p className="text-xs text-gray-500">
+                        Se muestra arriba de todo en /promociones/{formData.slug || "slug"}. Si se deja vacía se usa el banner por defecto de Configuración Web.
+                      </p>
+                    </div>
 
                     {/* Fechas */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
